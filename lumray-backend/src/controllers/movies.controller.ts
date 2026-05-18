@@ -11,10 +11,11 @@ export const getTopRated = async (req: Request, res: Response) => {
     }
 }
 
-export const getPopular = async (req: Request, res: Response) => {
+export const getByGenre = async (req: Request, res: Response) => {
     try {
-        const popular = await tmdbService.getPopular()
-        return res.json({data: popular.results, error: null, message: 'ok'})
+        const genreId = parseInt(req.params.genreId as string)
+        const movie = await tmdbService.getByGenre(genreId)
+        return res.json({data: movie.results, error: null, message: 'ok'})
     } catch (error) {
         return res.status(500).json({data: null, error: 'Server error', message: String(error)})
     }

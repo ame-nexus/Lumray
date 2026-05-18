@@ -1,9 +1,9 @@
 import { Router } from "express";
-import { getPopular, getTopRated } from "../controllers/movies.controller";
+import { getByGenre, getTopRated } from "../controllers/movies.controller";
 
 const router = Router()
 
 router.get('/top-rated', getTopRated)
-router.get('/popular', getPopular)
+router.get('/by-genre/:genreId', getByGenre)
 
 export default router
