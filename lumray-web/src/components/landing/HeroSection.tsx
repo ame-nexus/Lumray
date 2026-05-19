@@ -74,7 +74,7 @@ export default function HeroSection() {
     }, [])
 
     return (
-        <section className="text-center mb-18.5">
+        <section className="text-center px-40 mb-18.5">
             <h1 className="font-outfit text-[88px] font-semibold text-text">
                 Discover your next{' '}
                 <span className="text-purple-light">obsession</span>

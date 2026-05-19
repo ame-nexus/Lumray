@@ -49,7 +49,7 @@ export default function GenreSection() {
     }, [])
 
     return (
-        <section className="bg-surface py-16 px-60 overflow-hidden ">
+        <section className="bg-surface py-16 px-40 overflow-hidden ">
             {/*header*/}
             <div className="flex flex-col items-center gap-4 mb-18 px-8">
                 <h2 className="font-outfit text-[88px] font-semibold text-text">
