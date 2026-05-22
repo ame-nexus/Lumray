@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Outfit, Roboto } from "next/font/google";
 import "./globals.css";
 import Navbar from "@/components/layout/Navbar";
+import Footer from "@/components/layout/Footer";
 
 const outfit = Outfit({
   variable: '--font-outfit',
@@ -29,6 +30,7 @@ export default function RootLayout({
       <body className="min-h-screen bg-bg text-text">
         <Navbar />
         {children}
+        <Footer/>
       </body>
     </html>
   )

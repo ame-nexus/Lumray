@@ -74,12 +74,12 @@ export default function HeroSection() {
     }, [])
 
     return (
-        <section className="text-center mb-18.5">
-            <h1 className="font-outfit text-[88px] font-semibold text-text">
+        <section className="text-center px-6 md:px-[92px] mb-12 md:mb-18.5">
+            <h1 className="font-outfit text-[40px] sm:text-[56px] md:text-[72px] font-semibold text-text">
                 Discover your next{' '}
                 <span className="text-purple-light">obsession</span>
             </h1>
-            <p className="text-white text-[20px] ">
+            <p className="text-white text-[14px] sm:text-[16px] md:text-[18px]">
                 From hidden gems to all time classics, explore films that resonate with you.
             </p>
             <Swiper
@@ -100,17 +100,14 @@ export default function HeroSection() {
                     delay: 2500,
                     disableOnInteraction: false,
                 }}
-                className="w-full mt-12"
-                // style={{
-                //     width: '100vw',
-                //     position: 'relative',
-                //     left: '50%',
-                //     transform: 'translateY(-70%)'
-                // }}
+                className="w-full mt-8 md:mt-12"
             >
                 {movies.map((movie, index) => (
-                    <SwiperSlide key={index} style={{ width: '380px' }}>
-                        <div className="relative w-full h-[560px] rounded-xl overflow-hidden">
+                    <SwiperSlide
+                        key={index}
+                        style={{ width: 'clamp(160px, 30vw, 360px)' }}
+                    >
+                        <div className="relative w-full h-[clamp(240px,45vw,520px)] rounded-xl overflow-hidden">
                             <Image
                                 src={`https://image.tmdb.org/t/p/w500${movie.poster_path}`}
                                 alt={movie.title}
@@ -121,6 +118,6 @@ export default function HeroSection() {
                     </SwiperSlide>
                 ))}
             </Swiper>
-        </section >
+        </section>
     )
 }
