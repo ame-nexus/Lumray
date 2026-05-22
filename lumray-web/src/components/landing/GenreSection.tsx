@@ -5,10 +5,9 @@ import Image from "next/image"
 import api from "@/services/api"
 import { Swiper, SwiperSlide } from "swiper/react"
 import { Autoplay } from "swiper/modules"
+import type { Swiper as SwiperClass } from "swiper"
 import 'swiper/css'
 import 'swiper/css/grid'
-import Link from "next/link"
-
 
 interface Movie {
     id: number
@@ -33,7 +32,7 @@ const genres = [
 export default function GenreSection() {
     const [selectedGenre, setSelectedGenre] = useState(genres[0])
     const [moviesByGenre, setMoviesByGenre] = useState<Record<number, Movie[]>>({})
-    const genreSwiperRef = useRef<any>(null)
+    const genreSwiperRef = useRef<SwiperClass | null>(null)
 
     useEffect(() => {
         Promise.all(
@@ -49,28 +48,32 @@ export default function GenreSection() {
     }, [])
 
     return (
-        <section className="bg-surface py-16 px-40 overflow-hidden ">
+        <section className="bg-surface px-6 md:px-12 xl:px-60 py-10 md:py-16 overflow-hidden">
             {/*header*/}
-            <div className="flex flex-col items-center gap-4 mb-18 px-8">
-                <h2 className="font-outfit text-[88px] font-semibold text-text">
+            <div className="flex flex-col items-center text-center gap-4 mb-10 md:mb-18 px-6 md:px-12 xl:px-60">
+                <h2 className="w-full font-outfit text-[30px] sm:text-[52px] md:text-[72px] font-semibold text-text">
                     <span className="text-purple-light">Explore</span> by mood, era, or genre
                 </h2>
-                <p className="text-white text-[20px]">
+                <p className="w-full max-w-[640px] text-white text-[14px] sm:text-[16px] md:text-[18px]">
                     Whether you need a visceral thrill or a quiet moment of
-                    reflection, we've mapped out the cinematic landscape for you.
+                    reflection, we&apos;ve mapped out the cinematic landscape for you.
                 </p>
-                {/* <Link href="/films" className="bg-white text-purple font-medium text-base mt-1.5 px-10 py-2.5 rounded-full hover:bg-text transition-colors">Genre List</Link> */}
             </div>
             {/*swiper films*/}
             <Swiper
                 key={selectedGenre.id}
                 modules={[Autoplay]}
-                slidesPerView={5}
+                slidesPerView={3}
+                breakpoints={{
+                    480:  { slidesPerView: 4 },
+                    768:  { slidesPerView: 5 },
+                    1024: { slidesPerView: 6 },
+                }}
                 speed={700}
                 autoplay={{ delay: 800, disableOnInteraction: false }}
                 spaceBetween={12}
                 loop
-                className="px-16 mb-12"
+                className="px-6 md:px-12 xl:px-60 mb-8 md:mb-12"
             >
                 {(moviesByGenre[selectedGenre.id] ?? []).map((movie) => (
                     <SwiperSlide key={movie.id}>
@@ -105,7 +108,7 @@ export default function GenreSection() {
                         onClick={() => genreSwiperRef.current?.slideToLoop(genres.indexOf(genre))}
                     >
                         {({ isActive }) => (
-                            <span className={`px-8 font-outfit font-medium transition-all duration-300 cursor-pointer ${isActive ? 'text-white' : 'text-text/20'
+                            <span className={`px-4 md:px-8 font-outfit font-medium transition-all duration-300 cursor-pointer text-sm md:text-base ${isActive ? 'text-white' : 'text-text/20'
                                 }`}>
                                 {genre.name}
                             </span>
