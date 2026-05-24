@@ -237,7 +237,7 @@ if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma
 - **Framework:** Next.js 14 (App Router)
 - **Language:** TypeScript
 - **Styling:** Tailwind CSS
-- **State management:** Redux Toolkit
+- **State management:** Zustand
 - **HTTP client:** Axios
 - **Icons:** Lucide React
 - **Components:** shadcn/ui + Radix UI
@@ -290,9 +290,7 @@ lumray-web/
 │   │       ├── Button.tsx
 │   │       └── StarRating.tsx
 │   ├── store/
-│   │   ├── index.ts               ← Redux store
-│   │   ├── auth.slice.ts          ← user auth state
-│   │   └── ui.slice.ts            ← modals, loading states
+│   │   └── auth.store.ts          ← Zustand auth store (user, token, setCredentials, logout)
 │   ├── services/
 │   │   └── api.ts                 ← Axios instance
 │   ├── hooks/
@@ -336,50 +334,47 @@ api.interceptors.response.use(
 export default api
 ```
 
-### Redux store pattern
+### Zustand auth store pattern
 ```typescript
-// store/auth.slice.ts
-import { createSlice, PayloadAction } from '@reduxjs/toolkit'
+// store/auth.store.ts
+import { create } from 'zustand'
+import { persist } from 'zustand/middleware'
 
 interface User {
   id: string
   username: string
   email: string
+  name: string | null
+  bio: string | null
   avatar: string | null
+  coverImage: string | null
+  emailVerified: boolean
+  points: number
+  level: number
 }
 
-interface AuthState {
+interface AuthStore {
   user: User | null
   token: string | null
-  loading: boolean
+  setCredentials: (user: User, token: string) => void
+  logout: () => void
 }
 
-const initialState: AuthState = {
-  user: null,
-  token: typeof window !== 'undefined' ? localStorage.getItem('token') : null,
-  loading: false
-}
-
-const authSlice = createSlice({
-  name: 'auth',
-  initialState,
-  reducers: {
-    setCredentials: (state, action: PayloadAction<{ user: User; token: string }>) => {
-      state.user = action.payload.user
-      state.token = action.payload.token
-      localStorage.setItem('token', action.payload.token)
-    },
-    logout: (state) => {
-      state.user = null
-      state.token = null
-      localStorage.removeItem('token')
-    }
-  }
-})
-
-export const { setCredentials, logout } = authSlice.actions
-export default authSlice.reducer
+export const useAuthStore = create<AuthStore>()(
+  persist(
+    (set) => ({
+      user: null,
+      token: null,
+      setCredentials: (user, token) => set({ user, token }),
+      logout: () => set({ user: null, token: null }),
+    }),
+    { name: 'auth' } // persisted to localStorage automatically
+  )
+)
 ```
+
+In components: `const user = useAuthStore(s => s.user)`
+Outside components (e.g. api.ts): `useAuthStore.getState().token`
 
 ### Component pattern (always use this structure)
 ```typescript
@@ -1036,6 +1031,6 @@ Some decorative design elements are exported as PNG/SVG from Figma and placed in
 - Use Lucide React for all icons
 - Use Next.js `<Image>` component instead of `<img>` tags
 - Use Next.js `<Link>` component instead of `<a>` tags for internal navigation
-- Redux Toolkit for global state — local component state uses `useState`
+- Zustand for global state (`useAuthStore`) — local component state uses `useState`
 - When building forms always add loading and error states
 - The backend runs on port 5000, the frontend on port 3000
