@@ -65,9 +65,9 @@ export default function GenreSection() {
                 modules={[Autoplay]}
                 slidesPerView={3}
                 breakpoints={{
-                    480:  { slidesPerView: 4 },
-                    768:  { slidesPerView: 5 },
-                    1024: { slidesPerView: 6 },
+                    480:  { slidesPerView: 3 },
+                    768:  { slidesPerView: 4 },
+                    1024: { slidesPerView: 5 },
                 }}
                 speed={700}
                 autoplay={{ delay: 800, disableOnInteraction: false }}
