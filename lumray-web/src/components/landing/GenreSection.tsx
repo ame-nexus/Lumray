@@ -33,6 +33,7 @@ export default function GenreSection() {
     const [selectedGenre, setSelectedGenre] = useState(genres[0])
     const [moviesByGenre, setMoviesByGenre] = useState<Record<number, Movie[]>>({})
     const genreSwiperRef = useRef<SwiperClass | null>(null)
+    const [loading, setLoading] = useState(true)
 
     useEffect(() => {
         Promise.all(
@@ -44,13 +45,14 @@ export default function GenreSection() {
             const cache: Record<number, Movie[]> = {}
             results.forEach(r => { cache[r.id] = r.movies })
             setMoviesByGenre(cache)
-        })
+        }).finally(() => setLoading(false))
     }, [])
+
 
     return (
         <section className="bg-surface px-6 md:px-12 xl:px-60 py-10 md:py-16 overflow-hidden">
             {/*header*/}
-            <div className="flex flex-col items-center text-center gap-4 mb-10 md:mb-18 px-6 md:px-12 xl:px-60">
+            <div className="flex flex-col items-center text-center gap-4 mb-10 md:mb-18 px-6 md:px-12">
                 <h2 className="w-full font-outfit text-[30px] sm:text-[52px] md:text-[72px] font-semibold text-text">
                     <span className="text-purple-light">Explore</span> by mood, era, or genre
                 </h2>
@@ -61,34 +63,43 @@ export default function GenreSection() {
             </div>
             {/*swiper films*/}
             <Swiper
-                key={selectedGenre.id}
+                key={loading ? 'skeleton' : selectedGenre.id}
                 modules={[Autoplay]}
                 slidesPerView={3}
                 breakpoints={{
-                    480:  { slidesPerView: 3 },
-                    768:  { slidesPerView: 4 },
+                    480: { slidesPerView: 3 },
+                    768: { slidesPerView: 4 },
                     1024: { slidesPerView: 5 },
                 }}
                 speed={700}
-                autoplay={{ delay: 800, disableOnInteraction: false }}
+                {...(!loading && { autoplay: { delay: 1000, disableOnInteraction: false, pauseOnMouseEnter: true } })}
                 spaceBetween={12}
                 loop
                 className="px-6 md:px-12 xl:px-60 mb-8 md:mb-12"
             >
-                {(moviesByGenre[selectedGenre.id] ?? []).map((movie) => (
-                    <SwiperSlide key={movie.id}>
-                        <div className="relative aspect-[2/3] rounded-xl overflow-hidden">
-                            {movie.poster_path && (
-                                <Image
-                                    src={`https://image.tmdb.org/t/p/w300${movie.poster_path}`}
-                                    alt={movie.title}
-                                    fill
-                                    className="object-cover"
-                                />
-                            )}
-                        </div>
-                    </SwiperSlide>
-                ))}
+                {loading
+                    ? Array.from({ length: 8 }).map((_, i) => (
+                        <SwiperSlide key={i}>
+                            <div className="relative aspect-2/3 rounded-xl bg-surface overflow-hidden">
+                                <div className="absolute inset-0 -translate-x-full animate-[shimmer_1.5s_infinite] bg-linear-to-r from-transparent via-white/5 to-transparent" />
+                            </div>
+                        </SwiperSlide>
+                    ))
+                    : (moviesByGenre[selectedGenre.id] ?? []).map((movie) => (
+                        <SwiperSlide key={movie.id}>
+                            <div className="relative aspect-2/3 rounded-xl overflow-hidden">
+                                {movie.poster_path && (
+                                    <Image
+                                        src={`https://image.tmdb.org/t/p/w300${movie.poster_path}`}
+                                        alt={movie.title}
+                                        fill
+                                        className="object-cover"
+                                    />
+                                )}
+                            </div>
+                        </SwiperSlide>
+                    ))
+                }
             </Swiper>
             {/*swiper genre*/}
             <Swiper

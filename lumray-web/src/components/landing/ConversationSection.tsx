@@ -68,8 +68,8 @@ export default function ConversationSection() {
                             <div key={i} className="w-full shrink-0 flex flex-col md:flex-row gap-4 bg-surface">
 
                                 {/* left — text */}
-                                <div className="w-full md:w-[40%] shrink-0 flex flex-col">
-                                    <div className="flex flex-col gap-4 md:gap-8 pt-8 px-6 lg:py-20 md:pt-[95px] md:pl-[48px] md:pr-8">
+                                <div className="w-full md:w-[45%] shrink-0 flex flex-col">
+                                    <div className="flex flex-col gap-4 md:gap-8 pt-8 px-6 lg:py-30 md:pt-[95px] md:pl-[48px] md:pr-8">
                                         <h3 className="font-outfit font-semibold text-[28px] md:text-[62px] text-white leading-tight">
                                             {slide.heading}
                                         </h3>

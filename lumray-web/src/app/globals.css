@@ -37,11 +37,6 @@ body {
   font-family: var(--font-roboto);
 }
 
-@keyframes scroll-left {
-  0% {transform: translateX(0);}
-  100% {transform: translateX(-50%);}
-}
-
-.animate-scroll {
-  animation: scroll-left 25s linear infinite;
+@keyframes shimmer {
+    100% { transform: translateX(100%); }
 }
