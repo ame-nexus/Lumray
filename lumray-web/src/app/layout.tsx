@@ -26,7 +26,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${outfit.variable} ${roboto.variable}`}>
-      <body className="min-h-screen bg-bg text-text">
+      <body className="min-h-screen bg-bg text-text" suppressHydrationWarning>
         <Navbar />
         {children}
       </body>
