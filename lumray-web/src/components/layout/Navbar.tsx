@@ -3,8 +3,23 @@
 import { useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 import { Search, Bell, ChevronDown, LogOut, User, Film, BookOpen, Star, List } from 'lucide-react'
 import { useAuthStore } from '@/store/auth.store'
+
+function NavLink({ href, children, mobile = false }: { href: string, children: React.ReactNode, mobile?: boolean }) {
+    const pathname = usePathname()
+    const isActive = pathname === href || (href !== '/' && pathname.startsWith(href))
+    const base = mobile ? 'text-sm' : 'text-base xl:text-lg'
+    return (
+        <Link href={href} className={`font-medium transition-colors ${base} ${isActive
+            ? 'text-purple-light underline underline-offset-4'
+            : 'text-text hover:text-purple-light'
+        }`}>
+            {children}
+        </Link>
+    )
+}
 
 function UserMenu() {
     const [open, setOpen] = useState(false)
@@ -90,10 +105,10 @@ export default function Navbar() {
                 </Link>
 
                 <div className='flex items-center gap-4'>
-                    <Link href="/home" className='text-text font-medium text-base xl:text-lg hover:text-purple-light'>Home</Link>
-                    <Link href="/films" className="text-text font-medium text-base xl:text-lg hover:text-purple-light">Films</Link>
-                    <Link href="/community" className="text-text font-medium text-base xl:text-lg hover:text-purple-light">Community</Link>
-                    <Link href="/lists" className="text-text font-medium text-base xl:text-lg hover:text-purple-light">Lists</Link>
+                    <NavLink href="/">Home</NavLink>
+                    <NavLink href="/films">Films</NavLink>
+                    <NavLink href="/community">Community</NavLink>
+                    <NavLink href="/lists">Lists</NavLink>
                     <div className="w-px h-5 bg-text/20 mx-1" />
                     {/* search — overlay wired up later */}
                     <button className="text-text hover:text-white transition-colors">
@@ -149,10 +164,10 @@ export default function Navbar() {
                     </div>
                 </div>
                 <div className='border-t border-text/10 flex items-center justify-center gap-8 h-11 px-6'>
-                    <Link href="/home" className='text-text font-medium text-sm hover:text-purple-light'>Home</Link>
-                    <Link href="/films" className="text-text font-medium text-sm hover:text-purple-light">Films</Link>
-                    <Link href="/community" className="text-text font-medium text-sm hover:text-purple-light">Community</Link>
-                    <Link href="/lists" className="text-text font-medium text-sm hover:text-purple-light">Lists</Link>
+                    <NavLink href="/" mobile>Home</NavLink>
+                    <NavLink href="/films" mobile>Films</NavLink>
+                    <NavLink href="/community" mobile>Community</NavLink>
+                    <NavLink href="/lists" mobile>Lists</NavLink>
                 </div>
             </div>
 
