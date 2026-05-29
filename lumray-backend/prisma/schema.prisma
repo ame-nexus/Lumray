@@ -43,6 +43,8 @@ model User {
   conversations ConversationParticipant[]
   messages      Message[]
   userBadges    UserBadge[]
+  watchlist     Watchlist[]
+  movieLikes    MovieLike[]
 }
 
 model PasswordReset {
@@ -94,6 +96,8 @@ model Movie {
   diaryEntries DiaryEntry[]
   listItems    ListItem[]
   posts        Post[]
+  watchlist    Watchlist[]
+  movieLikes   MovieLike[]
 }
 
 model Genre {
@@ -328,4 +332,26 @@ model UserBadge {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, badge])
+}
+
+model Watchlist {
+  id        String   @id @default(cuid())
+  userId    String
+  movieId   String
+  addedAt   DateTime @default(now())
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  movie Movie @relation(fields: [movieId], references: [id])
+
+  @@unique([userId, movieId])
+}
+
+model MovieLike {
+  userId  String
+  movieId String
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  movie Movie @relation(fields: [movieId], references: [id], onDelete: Cascade)
+
+  @@id([userId, movieId])
 }
