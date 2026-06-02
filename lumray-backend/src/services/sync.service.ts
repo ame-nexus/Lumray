@@ -10,13 +10,16 @@ interface TmdbMovie {
     release_date: string
     original_language: string
     genre_ids: number[]
+    popularity: number
+    vote_average: number
+    vote_count: number
 }
 
 async function syncGenres(): Promise<Map<number, string>> {
     const data = await tmdbService.getGenres()
     const genres = data.genres as { id: number; name: string }[]
 
-    await prisma.$transaction(
+    await Promise.all(
         genres.map(g =>
             prisma.genre.upsert({
                 where: { tmdbId: g.id },
@@ -48,11 +51,17 @@ async function syncMovies(movies: TmdbMovie[], genreMap: Map<number, string>) {
                         backdropPath: m.backdrop_path,
                         releaseDate: m.release_date,
                         language: m.original_language,
+                        popularity: m.popularity ?? 0,
+                        voteAverage: m.vote_average ?? 0,
+                        voteCount: m.vote_count ?? 0,
                     },
                     update: {
                         title: m.title,
                         posterPath: m.poster_path,
                         backdropPath: m.backdrop_path,
+                        popularity: m.popularity ?? 0,
+                        voteAverage: m.vote_average ?? 0,
+                        voteCount: m.vote_count ?? 0,
                         cachedAt: new Date(),
                     },
                     select: { id: true, tmdbId: true },
@@ -80,7 +89,6 @@ export async function syncAll() {
         orderBy: { cachedAt: 'desc' },
         select: { cachedAt: true }
     })
-
     if (latest && Date.now() - latest.cachedAt.getTime() < 60 * 60 * 1000) {
         console.log('Sync skipped — data is fresh')
         return
@@ -91,14 +99,29 @@ export async function syncAll() {
     const genreMap = await syncGenres()
     console.log(`Synced ${genreMap.size} genres`)
 
-    const totalPages = 25
-    const batchSize = 10
+    const totalPages = 200
+    const batchSize = 5   // smaller batches to reduce connection pressure
     const allMovies: TmdbMovie[] = []
+
+    async function fetchPage(page: number, retries = 4): Promise<{ results: TmdbMovie[] }> {
+        for (let attempt = 1; attempt <= retries; attempt++) {
+            try {
+                return await tmdbService.discover(page)
+            } catch (err) {
+                if (attempt === retries) throw err
+                const wait = attempt * 1500
+                console.log(`Page ${page} failed, retrying in ${wait}ms...`)
+                await new Promise(r => setTimeout(r, wait))
+            }
+        }
+        throw new Error('unreachable')
+    }
 
     for (let i = 1; i <= totalPages; i += batchSize) {
         const pages = Array.from({ length: Math.min(batchSize, totalPages - i + 1) }, (_, j) => i + j)
-        const results = await Promise.all(pages.map(p => tmdbService.discover(p)))
-        results.forEach(r => allMovies.push(...r.results))
+        const results = await Promise.all(pages.map(p => fetchPage(p)))
+        results.forEach(r => allMovies.push(...(r.results ?? [])))
+        console.log(`Fetched pages ${pages[0]}–${pages[pages.length - 1]} (${allMovies.length} movies so far)`)
     }
 
     const unique = Array.from(new Map(allMovies.map(m => [m.id, m])).values())

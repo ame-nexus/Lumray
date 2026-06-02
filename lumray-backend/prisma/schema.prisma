@@ -85,6 +85,9 @@ model Movie {
   releaseDate  String?
   language     String?
   status       String?
+  popularity   Float    @default(0)
+  voteAverage  Float    @default(0)
+  voteCount    Int      @default(0)
   cachedAt     DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
