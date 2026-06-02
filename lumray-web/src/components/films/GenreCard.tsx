@@ -2,17 +2,16 @@ import Image from 'next/image'
 
 export interface GenreCardProps {
   name: string
-  gradientColor: string
+  gradientFrom: string
+  gradientTo: string
   posters: string[]
 }
 
-export default function GenreCard({ name, gradientColor, posters }: GenreCardProps) {
+export default function GenreCard({ name, gradientFrom, gradientTo, posters }: GenreCardProps) {
   const thumbs = posters.slice(0, 3)
 
   return (
-    <article
-      className="group relative h-[180px] w-full max-w-[300px] cursor-pointer overflow-hidden rounded-xl transition-[filter] duration-300 hover:brightness-110"
-    >
+    <article className="group relative h-35 w-full cursor-pointer overflow-hidden rounded-xl transition-[filter] duration-300 hover:brightness-110 md:h-40">
       <div className="absolute inset-0 flex">
         {thumbs.map((src, i) => (
           <div key={i} className="relative h-full w-1/3 overflow-hidden">
@@ -20,7 +19,7 @@ export default function GenreCard({ name, gradientColor, posters }: GenreCardPro
               src={src}
               alt=""
               fill
-              sizes="100px"
+              sizes="133px"
               className="object-cover object-center scale-110"
               aria-hidden
             />
@@ -31,13 +30,11 @@ export default function GenreCard({ name, gradientColor, posters }: GenreCardPro
       <div
         className="absolute inset-0"
         style={{
-          background: `linear-gradient(to top, ${gradientColor} 0%, ${gradientColor}99 35%, ${gradientColor}55 60%, transparent 100%)`,
+          background: `linear-gradient(to bottom, ${gradientFrom} 0%, ${gradientTo} 100%)`,
         }}
       />
 
-      <div className="absolute inset-0 bg-black/20 transition-colors group-hover:bg-black/10" />
-
-      <h3 className="absolute bottom-4 left-4 font-outfit text-2xl font-bold text-white drop-shadow-md">
+      <h3 className="absolute bottom-3 left-3 font-outfit text-xl font-bold text-white drop-shadow-md leading-none md:text-2xl">
         {name}
       </h3>
     </article>
@@ -47,7 +44,8 @@ export default function GenreCard({ name, gradientColor, posters }: GenreCardPro
 export const GENRE_CARD_DUMMY: GenreCardProps[] = [
   {
     name: 'Drama',
-    gradientColor: '#6B21A8',
+    gradientFrom: 'rgba(26,16,53,0.85)',
+    gradientTo: 'rgba(113,78,228,0.9)',
     posters: [
       'https://image.tmdb.org/t/p/w300/3bhkrj58Vtu7enYsRolD1fZdja1.jpg',
       'https://image.tmdb.org/t/p/w300/sF1U4EUQS8YHUYjNl3pMGWMQumv.jpg',
@@ -56,7 +54,8 @@ export const GENRE_CARD_DUMMY: GenreCardProps[] = [
   },
   {
     name: 'Horror',
-    gradientColor: '#991B1B',
+    gradientFrom: 'rgba(13,0,0,0.85)',
+    gradientTo: 'rgba(127,29,29,0.9)',
     posters: [
       'https://image.tmdb.org/t/p/w300/u3bZgnGQ9T01sWNjtva9LXs9KVe.jpg',
       'https://image.tmdb.org/t/p/w300/1XDDXPXGiI8id7MrUxKXkaWloP.jpg',
@@ -65,7 +64,8 @@ export const GENRE_CARD_DUMMY: GenreCardProps[] = [
   },
   {
     name: 'Sci-Fi',
-    gradientColor: '#1D4ED8',
+    gradientFrom: 'rgba(5,13,26,0.85)',
+    gradientTo: 'rgba(15,61,110,0.9)',
     posters: [
       'https://image.tmdb.org/t/p/w300/gEU2QniE6E77NI6lCU6MxlNBvIx.jpg',
       'https://image.tmdb.org/t/p/w300/rSPw7tgCH9c6Nq1Zwe2lVvQ3YNz.jpg',
@@ -74,11 +74,52 @@ export const GENRE_CARD_DUMMY: GenreCardProps[] = [
   },
   {
     name: 'Animation',
-    gradientColor: '#15803D',
+    gradientFrom: 'rgba(13,26,10,0.85)',
+    gradientTo: 'rgba(45,107,26,0.9)',
     posters: [
       'https://image.tmdb.org/t/p/w300/39wmItIWsg5sZMyWYCLiNmJ7hwM.jpg',
       'https://image.tmdb.org/t/p/w300/inVdhWg99sFW7oCfcqNraEsKZv8.jpg',
       'https://image.tmdb.org/t/p/w300/8Vt6mWEReuy4OfC9ljwC3Jzp9XX.jpg',
+    ],
+  },
+  {
+    name: 'Thriller',
+    gradientFrom: 'rgba(26,10,5,0.85)',
+    gradientTo: 'rgba(122,46,8,0.9)',
+    posters: [
+      'https://image.tmdb.org/t/p/w300/qJ2tW6WMUDux911r6m7haRef0WH.jpg',
+      'https://image.tmdb.org/t/p/w300/pB8BM7pdSp6B6Ih7QZ4DrQ3PmJK.jpg',
+      'https://image.tmdb.org/t/p/w300/d5iIlFn5s0ImszYzBPb8JPIfbXD.jpg',
+    ],
+  },
+  {
+    name: 'Romance',
+    gradientFrom: 'rgba(26,13,26,0.85)',
+    gradientTo: 'rgba(122,32,128,0.9)',
+    posters: [
+      'https://image.tmdb.org/t/p/w300/arw2vcBveWOVZ6oa6TEq6NAsWzf.jpg',
+      'https://image.tmdb.org/t/p/w300/sF1U4EUQS8YHUYjNl3pMGWMQumv.jpg',
+      'https://image.tmdb.org/t/p/w300/39wmItIWsg5sZMyWYCLiNmJ7hwM.jpg',
+    ],
+  },
+  {
+    name: 'Crime',
+    gradientFrom: 'rgba(10,10,10,0.85)',
+    gradientTo: 'rgba(50,50,60,0.9)',
+    posters: [
+      'https://image.tmdb.org/t/p/w300/d5iIlFn5s0ImszYzBPb8JPIfbXD.jpg',
+      'https://image.tmdb.org/t/p/w300/3bhkrj58Vtu7enYsRolD1fZdja1.jpg',
+      'https://image.tmdb.org/t/p/w300/qJ2tW6WMUDux911r6m7haRef0WH.jpg',
+    ],
+  },
+  {
+    name: 'Comedy',
+    gradientFrom: 'rgba(26,20,5,0.85)',
+    gradientTo: 'rgba(133,100,10,0.9)',
+    posters: [
+      'https://image.tmdb.org/t/p/w300/arw2vcBveWOVZ6oa6TEq6NAsWzf.jpg',
+      'https://image.tmdb.org/t/p/w300/39wmItIWsg5sZMyWYCLiNmJ7hwM.jpg',
+      'https://image.tmdb.org/t/p/w300/inVdhWg99sFW7oCfcqNraEsKZv8.jpg',
     ],
   },
 ]
