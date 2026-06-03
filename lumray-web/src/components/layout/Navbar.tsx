@@ -96,7 +96,7 @@ export default function Navbar() {
     const user = useAuthStore(s => s.user)
 
     return (
-        <nav className='sticky top-0 z-50 bg-bg-dark mb-6'>
+        <nav className='sticky top-0 z-50 bg-bg-dark'>
 
             {/* Desktop */}
             <div className='hidden md:flex items-center justify-between px-12 xl:px-60 h-[84px]'>

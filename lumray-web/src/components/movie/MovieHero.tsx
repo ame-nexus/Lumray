@@ -2,7 +2,8 @@
 
 import Image from 'next/image'
 import Link from 'next/link'
-import { Star } from 'lucide-react'
+import { Star, ChevronLeft } from 'lucide-react'
+import { useRouter } from 'next/navigation'
 
 interface Genre { genre: { name: string } }
 interface CrewMember {
@@ -49,12 +50,13 @@ export default function MovieHero({
   title, tagline, posterPath, backdropPath, releaseDate,
   runtime, language, voteAverage, voteCount, genres, crew,
 }: MovieHeroProps) {
+  const router = useRouter()
   const director = crew.find(c => c.job === 'Director')
   const year = releaseDate?.slice(0, 4)
   const stars = voteAverage / 2  // TMDb is /10, Lumray is /5
 
   return (
-    <section className="relative w-full overflow-hidden">
+    <section className="relative w-full overflow-hidden min-h-[460px] md:min-h-[540px] flex flex-col justify-end pt-110">
       {/* Backdrop image */}
       <div className="absolute inset-0">
         {backdropPath ? (
@@ -62,7 +64,7 @@ export default function MovieHero({
             src={`https://image.tmdb.org/t/p/original${backdropPath}`}
             alt={title}
             fill
-            className="object-cover object-center"
+            className="object-cover object-top"
             priority
             unoptimized
           />
@@ -70,18 +72,27 @@ export default function MovieHero({
           <div className="h-full w-full bg-bg-dark" />
         )}
         {/* Left-to-right dark fade so text on left is readable */}
-        <div className="absolute inset-0 bg-linear-to-r from-black/90 via-black/65 to-black/20" />
-        {/* Bottom-to-up fade into page background */}
-        <div className="absolute inset-0 bg-linear-to-t from-bg via-bg/40 to-transparent" />
+        <div className="absolute inset-0 bg-linear-to-r from-black/80 via-black/30 to-transparent" />
+        {/* Bottom fade — blends seamlessly into page background */}
+        <div className="absolute inset-0 bg-linear-to-t from-bg from-5% via-bg/40 to-transparent" />
       </div>
 
-      {/* Content */}
-      <div className="relative z-10 px-6 py-12 md:px-12 xl:px-60 md:py-16">
+      {/* Back button — top-left */}
+      <button
+        onClick={() => router.back()}
+        className="absolute top-5 left-6 z-20 md:left-12 xl:left-60 flex items-center gap-1 rounded-full border border-white/30 px-4 py-2 text-sm text-white/80 transition-colors hover:bg-white/10"
+      >
+        <ChevronLeft size={16} />
+        Back
+      </button>
+
+      {/* Content pinned to bottom */}
+      <div className="relative z-10 px-6 pb-10 md:px-12 xl:px-60 md:pb-12">
         <div className="flex gap-6 md:gap-10 items-end">
 
           {/* Poster */}
           <div className="hidden shrink-0 sm:block">
-            <div className="relative w-36 md:w-44 xl:w-52 aspect-2/3 overflow-hidden rounded-xl shadow-2xl ring-1 ring-white/10">
+            <div className="relative w-36 md:w-44 xl:w-62 aspect-2/3 overflow-hidden rounded-xl shadow-2xl ring-1 ring-white/10">
               {posterPath ? (
                 <Image
                   src={`https://image.tmdb.org/t/p/w500${posterPath}`}
