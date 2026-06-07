@@ -9,10 +9,10 @@ const account = ['Sign up', 'Log in', 'Profile', 'Diary', 'Settings']
 
 export default function Footer() {
     return (
-        <footer className="bg-[#12101f] px-6 md:px-60 pt-12 pb-8">
+        <footer className="bg-[#12101f] px-6 md:px-12 xl:px-60 pt-12 pb-8">
 
             {/* top row */}
-            <div className="flex flex-col md:flex-row gap-10 md:gap-56 mb-8">
+            <div className="flex flex-col md:flex-row gap-10 md:gap-16 xl:gap-56 mb-8">
 
                 {/* brand */}
                 <div className="flex flex-col gap-5 max-w-full md:max-w-[260px]">

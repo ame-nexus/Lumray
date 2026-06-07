@@ -1,11 +1,13 @@
 'use client'
 
 import Image from 'next/image'
-import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { ChevronLeft } from 'lucide-react'
 
 // shared purple left panel — used on all auth pages
 export default function AuthPanel({ children }: { children: React.ReactNode }) {
+    const router = useRouter()
+
     return (
         <div className="min-h-screen flex">
             <div className="w-full flex">
@@ -33,20 +35,20 @@ export default function AuthPanel({ children }: { children: React.ReactNode }) {
                     </div>
 
                     <div className="relative z-10">
-                        <Link href="/" className="flex items-center gap-1 text-white/80 text-sm border border-white/30 rounded-full px-4 py-2 w-fit hover:bg-white/10 transition-colors">
+                        <button onClick={() => router.back()} className="flex items-center gap-1 text-white/80 text-sm border border-white/30 rounded-full px-4 py-2 w-fit hover:bg-white/10 transition-colors">
                             <ChevronLeft size={16} />
                             Back
-                        </Link>
+                        </button>
                     </div>
                 </div>
 
                 {/* right side — each page injects its own content here */}
                 <div className="flex-1 bg-[#1a1b21] p-8 md:px-16 xl:px-40 flex flex-col justify-center">
                     {/* back button — mobile only */}
-                    <Link href="/" className="md:hidden flex items-center gap-1 text-text-muted text-sm mb-8 hover:text-white transition-colors w-fit">
+                    <button onClick={() => router.back()} className="md:hidden flex items-center gap-1 text-text-muted text-sm mb-8 hover:text-white transition-colors w-fit">
                         <ChevronLeft size={16} />
                         Back
-                    </Link>
+                    </button>
                     {children}
                 </div>
 

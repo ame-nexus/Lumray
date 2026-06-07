@@ -3,13 +3,30 @@
 import { useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
+import { usePathname, useRouter } from 'next/navigation'
 import { Search, Bell, ChevronDown, LogOut, User, Film, BookOpen, Star, List } from 'lucide-react'
 import { useAuthStore } from '@/store/auth.store'
+import SearchModal from '@/components/search/SearchModal'
+
+function NavLink({ href, children, mobile = false }: { href: string, children: React.ReactNode, mobile?: boolean }) {
+    const pathname = usePathname()
+    const isActive = pathname === href || (href !== '/' && pathname.startsWith(href))
+    const base = mobile ? 'text-sm' : 'text-base xl:text-lg'
+    return (
+        <Link href={href} className={`font-medium transition-colors ${base} ${isActive
+            ? 'text-purple-light underline underline-offset-4'
+            : 'text-text hover:text-purple-light'
+        }`}>
+            {children}
+        </Link>
+    )
+}
 
 function UserMenu() {
     const [open, setOpen] = useState(false)
     const user = useAuthStore(s => s.user)
     const logout = useAuthStore(s => s.logout)
+    const router = useRouter()
 
     return (
         <div className="relative">
@@ -25,7 +42,7 @@ function UserMenu() {
                         : <span className="text-white text-xs font-semibold">{user?.username?.[0]?.toUpperCase()}</span>
                     }
                 </div>
-                <span className="text-white text-sm font-medium">{user?.username}</span>
+                <span className="text-white text-sm font-medium truncate max-w-20 md:max-w-35">{user?.username}</span>
                 <ChevronDown size={14} className={`text-text transition-transform ${open ? 'rotate-180' : ''}`} />
             </button>
 
@@ -63,7 +80,7 @@ function UserMenu() {
                         </div>
                         <div className="border-t border-text/10 py-1">
                             <button
-                                onClick={() => { logout(); setOpen(false) }}
+                                onClick={() => { logout(); setOpen(false); router.push('/') }}
                                 className="w-full flex items-center gap-3 px-4 py-2.5 text-red-400 text-sm hover:bg-red-400/10 transition-colors"
                             >
                                 <LogOut size={15} /> Log Out
@@ -78,25 +95,26 @@ function UserMenu() {
 
 export default function Navbar() {
     const user = useAuthStore(s => s.user)
+    const [searchOpen, setSearchOpen] = useState(false)
 
     return (
-        <nav className='sticky top-0 z-50 bg-bg-dark mb-6'>
+        <>
+        <nav className='sticky top-0 z-50 bg-bg-dark'>
 
             {/* Desktop */}
             <div className='hidden md:flex items-center justify-between px-12 xl:px-60 h-[84px]'>
-                <Link href="/" className="flex items-center gap-2">
+                <Link href={user ? "/home" : "/"} className="flex items-center gap-2">
                     <Image src="/images/lumray-icon.svg" alt="Lumray" width={42} height={42} />
                     <span className="font-outfit text-2xl font-bold text-white">lumray</span>
                 </Link>
 
                 <div className='flex items-center gap-4'>
-                    <Link href="/home" className='text-text font-medium text-base xl:text-lg hover:text-purple-light'>Home</Link>
-                    <Link href="/films" className="text-text font-medium text-base xl:text-lg hover:text-purple-light">Films</Link>
-                    <Link href="/community" className="text-text font-medium text-base xl:text-lg hover:text-purple-light">Community</Link>
-                    <Link href="/lists" className="text-text font-medium text-base xl:text-lg hover:text-purple-light">Lists</Link>
+                    <NavLink href="/home">Home</NavLink>
+                    <NavLink href="/films">Films</NavLink>
+                    <NavLink href="/community">Community</NavLink>
+                    <NavLink href="/lists">Lists</NavLink>
                     <div className="w-px h-5 bg-text/20 mx-1" />
-                    {/* search — overlay wired up later */}
-                    <button className="text-text hover:text-white transition-colors">
+                    <button onClick={() => setSearchOpen(true)} className="text-text hover:text-white transition-colors">
                         <Search size={20} />
                     </button>
 
@@ -123,13 +141,12 @@ export default function Navbar() {
             {/* Mobile */}
             <div className='md:hidden'>
                 <div className='flex items-center justify-between px-6 h-[60px]'>
-                    <Link href="/" className="flex items-center gap-2">
+                    <Link href={user ? "/home" : "/"} className="flex items-center gap-2">
                         <Image src="/images/lumray-icon.svg" alt="Lumray" width={32} height={32} />
                         <span className="font-outfit text-xl font-bold text-white">lumray</span>
                     </Link>
                     <div className='flex items-center gap-3'>
-                        {/* search icon always visible */}
-                        <button className="text-text hover:text-white transition-colors">
+                        <button onClick={() => setSearchOpen(true)} className="text-text hover:text-white transition-colors">
                             <Search size={18} />
                         </button>
                         {user ? (
@@ -149,13 +166,16 @@ export default function Navbar() {
                     </div>
                 </div>
                 <div className='border-t border-text/10 flex items-center justify-center gap-8 h-11 px-6'>
-                    <Link href="/home" className='text-text font-medium text-sm hover:text-purple-light'>Home</Link>
-                    <Link href="/films" className="text-text font-medium text-sm hover:text-purple-light">Films</Link>
-                    <Link href="/community" className="text-text font-medium text-sm hover:text-purple-light">Community</Link>
-                    <Link href="/lists" className="text-text font-medium text-sm hover:text-purple-light">Lists</Link>
+                    <NavLink href="/home" mobile>Home</NavLink>
+                    <NavLink href="/films" mobile>Films</NavLink>
+                    <NavLink href="/community" mobile>Community</NavLink>
+                    <NavLink href="/lists" mobile>Lists</NavLink>
                 </div>
             </div>
 
         </nav>
+
+        {searchOpen && <SearchModal onClose={() => setSearchOpen(false)} />}
+        </>
     )
 }

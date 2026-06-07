@@ -11,7 +11,24 @@ const nextConfig: NextConfig = {
         protocol: 'https',
         hostname: 'lh3.googleusercontent.com',
       },
+      {
+        protocol: 'https',
+        hostname: 'i.pravatar.cc',
+      },
+      {
+        protocol: 'https',
+        hostname: 'i.scdn.co',
+      },
+      {
+        protocol: 'https',
+        hostname: '*.mzstatic.com',
+      },
     ],
+    minimumCacheTTL: 86400,
+    formats: ['image/webp'],
+  },
+  experimental: {
+    proxyTimeout: 30000,
   },
 }
 
