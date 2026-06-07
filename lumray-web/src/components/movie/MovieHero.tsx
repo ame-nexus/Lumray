@@ -61,12 +61,11 @@ export default function MovieHero({
       <div className="absolute inset-0">
         {backdropPath ? (
           <Image
-            src={`https://image.tmdb.org/t/p/original${backdropPath}`}
+            src={`https://image.tmdb.org/t/p/w1280${backdropPath}`}
             alt={title}
             fill
             className="object-cover object-top"
             priority
-            unoptimized
           />
         ) : (
           <div className="h-full w-full bg-bg-dark" />
@@ -100,7 +99,6 @@ export default function MovieHero({
                   fill
                   className="object-cover"
                   priority
-                  unoptimized
                 />
               ) : (
                 <div className="flex h-full items-center justify-center bg-surface p-3">

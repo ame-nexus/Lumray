@@ -34,7 +34,7 @@ async function syncGenres(): Promise<Map<number, string>> {
 }
 
 async function syncMovies(movies: TmdbMovie[], genreMap: Map<number, string>) {
-    const chunkSize = 50
+    const chunkSize = 10
 
     for (let i = 0; i < movies.length; i += chunkSize) {
         const chunk = movies.slice(i, i + chunkSize)
@@ -81,10 +81,31 @@ async function syncMovies(movies: TmdbMovie[], genreMap: Map<number, string>) {
         if (rows.length) {
             await prisma.movieGenre.createMany({ data: rows, skipDuplicates: true })
         }
+
+        if (i % 500 === 0 && i > 0) {
+            console.log(`  Written ${i} / ${movies.length} movies...`)
+        }
+
+        await new Promise(r => setTimeout(r, 100))
     }
 }
 
-export async function syncAll() {
+export async function syncAll(): Promise<void> {
+    try {
+        await runSync()
+    } catch (err: unknown) {
+        const code = (err as { code?: string })?.code
+        if (code === 'P1017' || code === 'P1001' || code === 'ECONNRESET') {
+            console.log(`DB connection error (${code}) during sync, retrying in 8s...`)
+            await new Promise(r => setTimeout(r, 8000))
+            await runSync()
+        } else {
+            throw err
+        }
+    }
+}
+
+async function runSync() {
     const latest = await prisma.movie.findFirst({
         orderBy: { cachedAt: 'desc' },
         select: { cachedAt: true }
@@ -100,7 +121,8 @@ export async function syncAll() {
     console.log(`Synced ${genreMap.size} genres`)
 
     const totalPages = 200
-    const batchSize = 5   // smaller batches to reduce connection pressure
+    const batchSize = 2
+    const batchDelay = 300
     const allMovies: TmdbMovie[] = []
 
     async function fetchPage(page: number, retries = 4): Promise<{ results: TmdbMovie[] }> {
@@ -109,7 +131,7 @@ export async function syncAll() {
                 return await tmdbService.discover(page)
             } catch (err) {
                 if (attempt === retries) throw err
-                const wait = attempt * 1500
+                const wait = attempt * 2000
                 console.log(`Page ${page} failed, retrying in ${wait}ms...`)
                 await new Promise(r => setTimeout(r, wait))
             }
@@ -122,6 +144,7 @@ export async function syncAll() {
         const results = await Promise.all(pages.map(p => fetchPage(p)))
         results.forEach(r => allMovies.push(...(r.results ?? [])))
         console.log(`Fetched pages ${pages[0]}–${pages[pages.length - 1]} (${allMovies.length} movies so far)`)
+        await new Promise(r => setTimeout(r, batchDelay))
     }
 
     const unique = Array.from(new Map(allMovies.map(m => [m.id, m])).values())

@@ -2,8 +2,9 @@ import { Request, Response } from 'express'
 import { Prisma } from '@prisma/client'
 import { prisma } from '../lib/prisma'
 import { tmdbService } from '../services/tmdb.service'
+import { itunesService } from '../services/itunes.service'
 
-export const getTopRated = async (req: Request, res: Response) => {
+export const getTopRated = async (_req: Request, res: Response) => {
     try {
         const topRated = await tmdbService.getTopRated()
         const filtered = topRated.results.filter((movie: { vote_count: number }) => movie.vote_count >= 5000)
@@ -31,12 +32,17 @@ export const getMovieDetail = async (req: Request, res: Response) => {
         // Check if movie already has cast cached
         const existing = await prisma.movie.findUnique({
             where: { tmdbId },
-            select: { id: true, cast: { select: { id: true }, take: 1 } }
+            select: { id: true, cast: { select: { id: true }, take: 1 }, keywords: true }
         })
 
-        if (!existing || existing.cast.length === 0) {
+        if (!existing || existing.cast.length === 0 || existing.keywords.length === 0) {
+          try {
             // Fetch full details + credits from TMDb
             const tmdb = await tmdbService.getMovieDetail(tmdbId)
+
+            // Extract keyword names from TMDb response
+            const keywords = ((tmdb.keywords?.keywords ?? []) as { id: number; name: string }[])
+                .map(k => k.name)
 
             // Upsert movie with all detail fields
             const saved = await prisma.movie.upsert({
@@ -52,6 +58,7 @@ export const getMovieDetail = async (req: Request, res: Response) => {
                     releaseDate: tmdb.release_date ?? null,
                     language: tmdb.original_language ?? null,
                     status: tmdb.status ?? null,
+                    keywords,
                     popularity: tmdb.popularity ?? 0,
                     voteAverage: tmdb.vote_average ?? 0,
                     voteCount: tmdb.vote_count ?? 0,
@@ -60,6 +67,7 @@ export const getMovieDetail = async (req: Request, res: Response) => {
                     tagline: tmdb.tagline ?? null,
                     runtime: tmdb.runtime ?? null,
                     status: tmdb.status ?? null,
+                    keywords,
                     popularity: tmdb.popularity ?? 0,
                     voteAverage: tmdb.vote_average ?? 0,
                     voteCount: tmdb.vote_count ?? 0,
@@ -140,6 +148,12 @@ export const getMovieDetail = async (req: Request, res: Response) => {
                     skipDuplicates: true
                 })
             ])
+          } catch (syncErr) {
+            // Sync failed — if the movie isn't in the DB at all, surface the error
+            // Otherwise fall through and return whatever we already have cached
+            if (!existing) throw syncErr
+            console.error(`[movies] sync failed for tmdbId ${tmdbId}:`, syncErr)
+          }
         }
 
         // Fetch full movie with all relations
@@ -159,7 +173,52 @@ export const getMovieDetail = async (req: Request, res: Response) => {
             }
         })
 
+        if (!movie) return res.status(404).json({ data: null, error: 'Not found', message: 'Movie not found' })
         return res.json({ data: movie, error: null, message: 'ok' })
+    } catch (error) {
+        return res.status(500).json({ data: null, error: 'Server error', message: String(error) })
+    }
+}
+
+export const getSimilarMovies = async (req: Request, res: Response) => {
+    try {
+        const tmdbId = parseInt(req.params.id as string)
+        if (isNaN(tmdbId)) return res.status(400).json({ data: null, error: 'Invalid id', message: 'id must be a number' })
+
+        const data = await tmdbService.getSimilar(tmdbId)
+        const movies = (data.results ?? [])
+            .filter((m: { vote_count: number }) => m.vote_count >= 50)
+            .slice(0, 8)
+            .map((m: { id: number; title: string; poster_path: string | null; release_date: string; vote_average: number; vote_count: number }) => ({
+                tmdbId: m.id,
+                title: m.title,
+                posterPath: m.poster_path,
+                year: m.release_date?.slice(0, 4) ?? null,
+                voteAverage: m.vote_average,
+                voteCount: m.vote_count,
+            }))
+
+        return res.json({ data: movies, error: null, message: 'ok' })
+    } catch (error) {
+        return res.status(500).json({ data: null, error: 'Server error', message: String(error) })
+    }
+}
+
+export const getSoundtrack = async (req: Request, res: Response) => {
+    try {
+        const tmdbId = parseInt(req.params.id as string)
+        if (isNaN(tmdbId)) return res.status(400).json({ data: null, error: 'Invalid id', message: 'id must be a number' })
+
+        const movie = await prisma.movie.findUnique({
+            where: { tmdbId },
+            select: { title: true, releaseDate: true },
+        })
+        if (!movie) return res.status(404).json({ data: null, error: 'Not found', message: 'Movie not found' })
+
+        const year = movie.releaseDate?.slice(0, 4) ?? undefined
+        const result = await itunesService.getSoundtrack(movie.title, year)
+
+        return res.json({ data: result, error: null, message: 'ok' })
     } catch (error) {
         return res.status(500).json({ data: null, error: 'Server error', message: String(error) })
     }
@@ -227,12 +286,40 @@ export const browseMovies = async (req: Request, res: Response) => {
             }
         }
 
+        // Restrict by release date and vote count based on sort type
+        // releaseDate is stored as "YYYY-MM-DD" string — '1900-01-01' is the earliest valid sentinel
+        const today = new Date().toISOString().slice(0, 10)
+        const MIN_DATE = '1900-01-01'
+
+        if (sort === 'upcoming') {
+            // Films with a future release date OR not-yet-released status
+            andClauses.push({
+                OR: [
+                    { releaseDate: { gt: today } },
+                    { status: { in: ['In Production', 'Planned', 'Post Production', 'Rumored'] } },
+                ]
+            })
+        } else if (sort === 'popular') {
+            andClauses.push({ releaseDate: { gte: MIN_DATE, lte: today } })
+            andClauses.push({ voteCount: { gte: 3000 } })
+        } else if (sort === 'top-rated') {
+            andClauses.push({ releaseDate: { gte: MIN_DATE, lte: today } })
+            andClauses.push({ voteCount: { gte: 8000 } })
+            andClauses.push({ voteAverage: { gte: 7 } })
+        } else if (sort === 'new-releases') {
+            const twoYearsAgo = `${new Date().getFullYear() - 2}-01-01`
+            andClauses.push({ releaseDate: { gte: twoYearsAgo, lte: today } })
+            andClauses.push({ voteCount: { gte: 1000 } })
+        }
+        // 'a-z' and filter-tab sorts (by-genre, by-year, by-decade) show everything
+
         const where: Prisma.MovieWhereInput = andClauses.length ? { AND: andClauses } : {}
 
         let orderBy: Prisma.MovieOrderByWithRelationInput | Prisma.MovieOrderByWithRelationInput[]
         switch (sort) {
             case 'top-rated':    orderBy = { voteAverage: 'desc' };  break
             case 'new-releases': orderBy = { releaseDate: 'desc' };  break
+            case 'upcoming':     orderBy = { releaseDate: 'asc' };   break
             case 'a-z':          orderBy = { title: 'asc' };         break
             case 'shortest':     orderBy = { runtime: 'asc' };       break
             case 'longest':      orderBy = { runtime: 'desc' };      break

@@ -2,12 +2,12 @@ import Link from 'next/link'
 import MoviePoster from '@/components/films/MoviePoster'
 
 export interface RecommendedMovie {
-  id: string | number
+  tmdbId: number
   title: string
   posterPath: string | null
   year?: string | number
-  rating?: number
-  ratingCount?: number
+  voteAverage?: number
+  voteCount?: number
 }
 
 export interface RecommendedRowProps {
@@ -23,7 +23,7 @@ export default function RecommendedRow({
     <section>
       <div className="mb-4 flex items-center justify-between gap-4">
         <h2 className="font-outfit text-xl font-bold text-text">
-          Recommended for you
+          Similar films
         </h2>
         <Link
           href={moreHref}
@@ -38,15 +38,15 @@ export default function RecommendedRow({
         style={{ scrollbarWidth: 'none' }}
       >
         {movies.map((movie) => (
-          <div key={movie.id} className="min-w-[140px] shrink-0">
-            <MoviePoster {...movie} sizes="140px" />
+          <div key={movie.tmdbId} className="min-w-35 shrink-0">
+            <MoviePoster id={movie.tmdbId} title={movie.title} posterPath={movie.posterPath} year={String(movie.year ?? '')} rating={movie.voteAverage ? movie.voteAverage / 2 : undefined} sizes="140px" />
           </div>
         ))}
       </div>
 
       <div className="hidden grid-cols-4 gap-4 lg:grid">
         {movies.slice(0, 4).map((movie) => (
-          <MoviePoster key={movie.id} {...movie} />
+          <MoviePoster key={movie.tmdbId} id={movie.tmdbId} title={movie.title} posterPath={movie.posterPath} year={String(movie.year ?? '')} rating={movie.voteAverage ? movie.voteAverage / 2 : undefined} />
         ))}
       </div>
     </section>

@@ -27,11 +27,30 @@ export const tmdbService = {
         return data
     },
     getMovieDetail: async (id: number) => {
-        const { data } = await tmdb.get(`${BASE_URL()}/movie/${id}?api_key=${API_KEY()}&append_to_response=credits`)
+        const { data } = await tmdb.get(`${BASE_URL()}/movie/${id}?api_key=${API_KEY()}&append_to_response=credits,keywords`)
         return data
     },
     getByGenre: async (genreId: number, page = 1) => {
         const { data } = await tmdb.get(`${BASE_URL()}/discover/movie?api_key=${API_KEY()}&with_genres=${genreId}&sort_by=vote_average.desc&vote_count.gte=5000&page=${page}`)
+        return data
+    },
+    getPerson: async (id: number) => {
+        const { data } = await tmdb.get(`${BASE_URL()}/person/${id}?api_key=${API_KEY()}&append_to_response=movie_credits`, {
+            timeout: 30000,
+            decompress: true,
+        })
+        return data
+    },
+    search: async (query: string) => {
+        const { data } = await tmdb.get(`${BASE_URL()}/search/movie?api_key=${API_KEY()}&query=${encodeURIComponent(query)}&include_adult=false`)
+        return data
+    },
+    searchPerson: async (query: string) => {
+        const { data } = await tmdb.get(`${BASE_URL()}/search/person?api_key=${API_KEY()}&query=${encodeURIComponent(query)}`)
+        return data
+    },
+    getSimilar: async (id: number) => {
+        const { data } = await tmdb.get(`${BASE_URL()}/movie/${id}/similar?api_key=${API_KEY()}`)
         return data
     },
     image: (path: string, size: 'w200' | 'w300' | 'w500' | 'original' = 'w500') => {

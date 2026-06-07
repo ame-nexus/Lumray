@@ -1,8 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
+import { Heart, MessageCircle } from 'lucide-react'
 import ReviewCard, { type ReviewCardProps } from '@/components/movie/ReviewCard'
+import api from '@/services/api'
 
 export interface MovieCommunityProps {
   movieId: string
@@ -11,31 +14,137 @@ export interface MovieCommunityProps {
 
 type Tab = 'reviews' | 'posts' | 'lists'
 
-export default function MovieCommunity({ movieId, reviews }: MovieCommunityProps) {
-  const [tab, setTab] = useState<Tab>('reviews')
+interface ApiReview {
+  id: string
+  content: string
+  rating: number | null
+  createdAt: string
+  user: { username: string; avatar: string | null }
+  _count: { reviewLikes: number; comments: number }
+}
+
+interface ApiPost {
+  id: string
+  content: string
+  createdAt: string
+  user: { username: string; avatar: string | null }
+  _count: { likes: number; comments: number }
+}
+
+interface ApiList {
+  id: string
+  name: string
+  user: { username: string; avatar: string | null }
+  _count: { items: number }
+  items: { movie: { posterPath: string | null } }[]
+}
+
+function usernameInitials(username: string) {
+  return username.slice(0, 2).toUpperCase()
+}
+
+function Avatar({ username, avatar }: { username: string; avatar: string | null }) {
+  return (
+    <div className="relative h-8 w-8 shrink-0 overflow-hidden rounded-full bg-purple">
+      {avatar ? (
+        <Image src={avatar} alt={username} fill className="object-cover" sizes="32px" />
+      ) : (
+        <span className="flex h-full w-full items-center justify-center text-xs font-semibold text-white">
+          {usernameInitials(username)}
+        </span>
+      )}
+    </div>
+  )
+}
+
+export default function MovieCommunity({ movieId }: MovieCommunityProps) {
+  const [tab,          setTab]          = useState<Tab>('reviews')
+  const [reviews,      setReviews]      = useState<ReviewCardProps[]>([])
+  const [posts,        setPosts]        = useState<ApiPost[]>([])
+  const [lists,        setLists]        = useState<ApiList[]>([])
+  const [loading,      setLoading]      = useState(true)
+  const [postsLoading, setPostsLoading] = useState(false)
+  const [postsFetched, setPostsFetched] = useState(false)
+  const [listsLoading, setListsLoading] = useState(false)
+  const [listsFetched, setListsFetched] = useState(false)
+
+  const fetchReviews = useCallback(() => {
+    setLoading(true)
+    api.get(`/api/reviews?movieId=${movieId}`)
+      .then(res => {
+        const raw: ApiReview[] = res.data.data ?? []
+        setReviews(raw.map(r => ({
+          user:         { username: r.user.username, avatar: r.user.avatar },
+          rating:       r.rating ?? undefined,
+          content:      r.content,
+          likeCount:    r._count.reviewLikes,
+          commentCount: r._count.comments,
+          createdAt:    new Date(r.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
+        })))
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false))
+  }, [movieId])
+
+  const fetchPosts = useCallback(() => {
+    setPostsLoading(true)
+    api.get(`/api/posts?movieId=${movieId}&limit=3`)
+      .then(res => setPosts(res.data.data?.posts ?? []))
+      .catch(() => {})
+      .finally(() => { setPostsLoading(false); setPostsFetched(true) })
+  }, [movieId])
+
+  const fetchLists = useCallback(() => {
+    setListsLoading(true)
+    api.get(`/api/lists/by-movie/${movieId}`)
+      .then(res => setLists(res.data.data ?? []))
+      .catch(() => {})
+      .finally(() => { setListsLoading(false); setListsFetched(true) })
+  }, [movieId])
+
+  useEffect(() => { fetchReviews() }, [fetchReviews])
+
+  useEffect(() => {
+    if (tab === 'posts' && !postsFetched) fetchPosts()
+  }, [tab, postsFetched, fetchPosts])
+
+  useEffect(() => {
+    if (tab === 'lists' && !listsFetched) fetchLists()
+  }, [tab, listsFetched, fetchLists])
+
+  // Live refresh
+  useEffect(() => {
+    const match = (e: Event) => (e as CustomEvent).detail.movieId === movieId
+    const onReview = (e: Event) => { if (match(e)) fetchReviews() }
+    const onPost   = (e: Event) => { if (match(e)) fetchPosts() }
+    const onList   = (e: Event) => { if (match(e)) fetchLists() }
+    window.addEventListener('lumray:review-saved', onReview)
+    window.addEventListener('lumray:post-saved',   onPost)
+    window.addEventListener('lumray:list-saved',   onList)
+    return () => {
+      window.removeEventListener('lumray:review-saved', onReview)
+      window.removeEventListener('lumray:post-saved',   onPost)
+      window.removeEventListener('lumray:list-saved',   onList)
+    }
+  }, [movieId, fetchReviews, fetchPosts, fetchLists])
 
   return (
     <section>
       <div className="mb-4 flex items-center justify-between gap-4">
         <h2 className="font-outfit text-xl font-bold text-text">Community</h2>
-        <Link
-          href={`/films/${movieId}/reviews`}
-          className="font-roboto text-sm text-purple-light underline"
-        >
-          check all reviews →
+        <Link href={`/films/${movieId}/reviews`} className="font-roboto text-sm text-purple-light underline">
+          all reviews →
         </Link>
       </div>
 
       <div className="mb-4 flex gap-6 border-b border-text/10">
-        {(['reviews', 'posts', 'lists'] as const).map((key) => (
+        {(['reviews', 'posts', 'lists'] as const).map(key => (
           <button
             key={key}
             type="button"
             onClick={() => setTab(key)}
             className={`pb-2 font-outfit text-sm font-medium capitalize transition-colors ${
-              tab === key
-                ? 'border-b-2 border-purple-light text-purple-light'
-                : 'text-text-muted'
+              tab === key ? 'border-b-2 border-purple-light text-text' : 'text-text-muted hover:text-text-dim'
             }`}
           >
             {key}
@@ -43,48 +152,101 @@ export default function MovieCommunity({ movieId, reviews }: MovieCommunityProps
         ))}
       </div>
 
-      {tab === 'reviews' ? (
-        <div className="space-y-4">
-          {reviews.slice(0, 3).map((review, i) => (
-            <ReviewCard key={`${review.user.username}-${i}`} {...review} />
-          ))}
-        </div>
-      ) : (
-        <p className="py-4 font-roboto text-sm text-text-muted">Coming soon.</p>
+      {/* Reviews */}
+      {tab === 'reviews' && (
+        loading ? (
+          <div className="space-y-4">
+            {[1, 2].map(i => <div key={i} className="h-24 animate-pulse rounded-xl bg-surface" />)}
+          </div>
+        ) : reviews.length === 0 ? (
+          <p className="py-6 text-center font-roboto text-sm text-text-muted">
+            No reviews yet. Be the first to write one.
+          </p>
+        ) : (
+          <div className="space-y-4">
+            {reviews.slice(0, 3).map((review, i) => (
+              <ReviewCard key={`${review.user.username}-${i}`} {...review} />
+            ))}
+          </div>
+        )
+      )}
+
+      {/* Posts */}
+      {tab === 'posts' && (
+        postsLoading ? (
+          <div className="space-y-4">
+            {[1, 2].map(i => <div key={i} className="h-24 animate-pulse rounded-xl bg-surface" />)}
+          </div>
+        ) : posts.length === 0 ? (
+          <p className="py-6 text-center font-roboto text-sm text-text-muted">
+            No posts about this film yet.
+          </p>
+        ) : (
+          <div className="space-y-4">
+            {posts.map(post => (
+              <article key={post.id} className="rounded-xl border border-text/10 bg-surface p-4">
+                <div className="flex items-center gap-2.5">
+                  <Avatar username={post.user.username} avatar={post.user.avatar} />
+                  <div>
+                    <p className="font-outfit text-sm font-medium text-text">{post.user.username}</p>
+                    <p className="font-roboto text-xs text-text-muted">
+                      {new Date(post.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                    </p>
+                  </div>
+                </div>
+                <p className="mt-3 font-roboto text-sm leading-relaxed text-text">{post.content}</p>
+                <div className="mt-4 flex items-center gap-3 font-roboto text-xs text-text-muted">
+                  <span className="inline-flex items-center gap-1"><Heart size={12} />{post._count.likes} likes</span>
+                  <span aria-hidden>·</span>
+                  <span className="inline-flex items-center gap-1"><MessageCircle size={12} />{post._count.comments} comments</span>
+                </div>
+              </article>
+            ))}
+          </div>
+        )
+      )}
+
+      {/* Lists */}
+      {tab === 'lists' && (
+        listsLoading ? (
+          <div className="space-y-3">
+            {[1, 2, 3].map(i => <div key={i} className="h-16 animate-pulse rounded-xl bg-surface" />)}
+          </div>
+        ) : lists.length === 0 ? (
+          <p className="py-6 text-center font-roboto text-sm text-text-muted">
+            No public lists contain this film yet.
+          </p>
+        ) : (
+          <div className="space-y-3">
+            {lists.map(list => (
+              <Link
+                key={list.id}
+                href={`/profile/${list.user.username}/lists/${list.id}`}
+                className="flex items-center gap-4 rounded-xl bg-surface p-3 transition-colors hover:bg-surface-2"
+              >
+                <div className="flex shrink-0 gap-0.5 overflow-hidden rounded-lg">
+                  {Array.from({ length: 4 }, (_, i) => {
+                    const poster = list.items[i]?.movie.posterPath
+                    return poster ? (
+                      <div key={i} className="relative h-14 w-9 shrink-0">
+                        <Image src={`https://image.tmdb.org/t/p/w92${poster}`} alt="" fill className="object-cover" sizes="36px" />
+                      </div>
+                    ) : (
+                      <div key={i} className="h-14 w-9 shrink-0 bg-surface-2" />
+                    )
+                  })}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-outfit text-sm font-semibold text-text">{list.name}</p>
+                  <p className="font-roboto text-xs text-text-muted">
+                    {list._count.items} films · by <span className="text-purple-light">{list.user.username}</span>
+                  </p>
+                </div>
+              </Link>
+            ))}
+          </div>
+        )
       )}
     </section>
   )
-}
-
-export const DUMMY_MOVIE_COMMUNITY: MovieCommunityProps = {
-  movieId: '965150',
-  reviews: [
-    {
-      user: { username: 'rach_m', avatar: 'https://i.pravatar.cc/150?u=rach' },
-      rating: 5,
-      content:
-        'There is a haunting, rhythmic quality to this film that most modern cinema seems to have lost in the edit. Every frame of Aftersun feels like a memory you are afraid to lose.',
-      likeCount: 41,
-      commentCount: 11,
-      createdAt: '2 May 2023',
-    },
-    {
-      user: { username: 'slowcinema', avatar: null },
-      rating: 5,
-      content:
-        'Charlotte Wells captures the gap between what we remember and what was really there. The dance floor scene destroyed me.',
-      likeCount: 28,
-      commentCount: 5,
-      createdAt: '14 Apr 2023',
-    },
-    {
-      user: { username: 'a24fan', avatar: 'https://i.pravatar.cc/150?u=a24' },
-      rating: 4,
-      content:
-        'Quiet, devastating, and beautifully acted. Paul Mescal and Frankie Corio are incredible together.',
-      likeCount: 19,
-      commentCount: 3,
-      createdAt: '3 Mar 2023',
-    },
-  ],
 }

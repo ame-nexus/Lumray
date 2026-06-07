@@ -1,9 +1,6 @@
-'use client'
-
-import { useEffect, useState } from 'react'
-import { useParams } from 'next/navigation'
-import api from '@/services/api'
+import { notFound } from 'next/navigation'
 import MovieHero from '@/components/movie/MovieHero'
+import SoundtrackSection from '@/components/movie/SoundtrackSection'
 import {
   CastCrewSection,
   GenreThemesSection,
@@ -26,6 +23,7 @@ interface MovieDetail {
   releaseDate?: string | null
   language?: string | null
   status?: string | null
+  keywords: string[]
   voteAverage: number
   voteCount: number
   genres: { genre: { name: string } }[]
@@ -50,41 +48,61 @@ const LANGUAGE_MAP: Record<string, string> = {
   pt: 'Portuguese', zh: 'Chinese', ar: 'Arabic', ru: 'Russian',
 }
 
-function HeroSkeleton() {
-  return (
-    <div className="relative min-h-[460px] w-full animate-pulse bg-surface md:min-h-[540px]">
-      <div className="absolute inset-0 bg-linear-to-t from-bg to-transparent" />
-    </div>
-  )
+async function getMovie(id: string): Promise<MovieDetail | null> {
+  try {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/movies/${id}`, {
+      next: { revalidate: 3600 },
+      signal: AbortSignal.timeout(30000),
+    })
+    if (!res.ok) return null
+    const json = await res.json()
+    return json.data ?? null
+  } catch {
+    return null
+  }
 }
 
-export default function MovieDetailPage() {
-  const { id } = useParams<{ id: string }>()
-  const [movie, setMovie] = useState<MovieDetail | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-
-  useEffect(() => {
-    if (!id) return
-    setLoading(true)
-    api.get(`/api/movies/${id}`)
-      .then(res => setMovie(res.data.data))
-      .catch(() => setError('Film not found'))
-      .finally(() => setLoading(false))
-  }, [id])
-
-  if (loading) return <HeroSkeleton />
-
-  if (error || !movie) {
-    return (
-      <div className="flex min-h-64 items-center justify-center">
-        <p className="font-roboto text-text-muted">{error ?? 'Something went wrong'}</p>
-      </div>
-    )
+async function getSimilarMovies(id: string) {
+  try {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/movies/${id}/similar`, {
+      next: { revalidate: 3600 },
+      signal: AbortSignal.timeout(10000),
+    })
+    if (!res.ok) return []
+    const json = await res.json()
+    return json.data ?? []
+  } catch {
+    return []
   }
+}
+
+async function getSoundtrack(id: string) {
+  try {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/movies/${id}/soundtrack`, {
+      cache: 'no-store',
+      signal: AbortSignal.timeout(10000),
+    })
+    if (!res.ok) return null
+    const json = await res.json()
+    return json.data ?? null
+  } catch {
+    return null
+  }
+}
+
+export default async function MovieDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
+  const [movie, similar, soundtrack] = await Promise.all([
+    getMovie(id),
+    getSimilarMovies(id),
+    getSoundtrack(id),
+  ])
+
+  if (!movie) notFound()
 
   const castForSection = movie.cast.map(c => ({
     id: c.id,
+    tmdbId: c.person.tmdbId,
     name: c.person.name,
     character: c.character ?? undefined,
     profilePath: c.person.profilePath,
@@ -92,6 +110,7 @@ export default function MovieDetailPage() {
 
   const crewForSection = movie.crew.map(c => ({
     id: c.id,
+    tmdbId: c.person.tmdbId,
     name: c.person.name,
     job: c.job,
     profilePath: c.person.profilePath,
@@ -128,13 +147,7 @@ export default function MovieDetailPage() {
       />
 
       <div className="px-6 md:px-12 xl:px-60 pb-16">
-
-        {/* Mobile actions strip — MovieActions self-hides on lg+ */}
-        <div className="mb-6 lg:hidden">
-          <MovieActions movieId={movie.id} />
-        </div>
-
-        <div className="flex gap-8 xl:gap-12">
+        <div className="flex gap-6 lg:gap-8 xl:gap-10">
 
           {/* LEFT — main content */}
           <div className="min-w-0 flex-1 space-y-10">
@@ -145,22 +158,34 @@ export default function MovieDetailPage() {
               </p>
             )}
 
+            {/* Inline actions card — mobile/tablet only */}
+            <div className="lg:hidden">
+              <MovieActions
+                movieId={movie.id}
+                movieTitle={movie.title}
+                posterPath={movie.posterPath}
+                releaseDate={movie.releaseDate}
+                director={director}
+                mobileInline
+              />
+            </div>
+
             {(castForSection.length > 0 || crewForSection.length > 0) && (
               <CastCrewSection cast={castForSection} crew={crewForSection} />
             )}
 
             {genreNames.length > 0 && (
-              <GenreThemesSection genres={genreNames} />
+              <GenreThemesSection genres={genreNames} themes={movie.keywords} />
             )}
 
             <MovieCommunity movieId={movie.id} reviews={[]} />
 
-            <RecommendedRow movies={[]} />
+            <RecommendedRow movies={similar} />
           </div>
 
           {/* RIGHT — sidebar, desktop only */}
-          <div className="hidden lg:flex w-72 xl:w-80 shrink-0 flex-col gap-4">
-            <MovieActions movieId={movie.id} />
+          <div className="hidden lg:flex w-60 xl:w-72 2xl:w-80 shrink-0 flex-col gap-4 sticky top-25 self-start">
+            <MovieActions movieId={movie.id} movieTitle={movie.title} />
             <MovieRating
               average={ratingAverage}
               totalCount={movie.voteCount}
@@ -175,6 +200,15 @@ export default function MovieDetailPage() {
               language={language}
               released={movie.releaseDate ?? undefined}
             />
+            {soundtrack && (
+              <SoundtrackSection
+                tracks={soundtrack.tracks}
+                albumName={soundtrack.albumName}
+                albumUrl={soundtrack.albumUrl}
+                albumImage={soundtrack.albumImage}
+                totalTracks={soundtrack.totalTracks}
+              />
+            )}
           </div>
 
         </div>

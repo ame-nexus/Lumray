@@ -85,6 +85,7 @@ model Movie {
   releaseDate  String?
   language     String?
   status       String?
+  keywords     String[]
   popularity   Float    @default(0)
   voteAverage  Float    @default(0)
   voteCount    Int      @default(0)
@@ -122,15 +123,16 @@ model MovieGenre {
 }
 
 model Person {
-  id          String   @id @default(cuid())
-  tmdbId      Int      @unique
-  name        String
-  biography   String?  @db.Text
-  birthday    String?
-  deathday    String?
-  profilePath String?
-  cachedAt    DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id             String   @id @default(cuid())
+  tmdbId         Int      @unique
+  name           String
+  biography      String?  @db.Text
+  birthday       String?
+  deathday       String?
+  placeOfBirth   String?
+  profilePath    String?
+  cachedAt       DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   cast MovieCast[]
   crew MovieCrew[]

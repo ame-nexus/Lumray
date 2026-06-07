@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { Search, Bell, ChevronDown, LogOut, User, Film, BookOpen, Star, List } from 'lucide-react'
 import { useAuthStore } from '@/store/auth.store'
+import SearchModal from '@/components/search/SearchModal'
 
 function NavLink({ href, children, mobile = false }: { href: string, children: React.ReactNode, mobile?: boolean }) {
     const pathname = usePathname()
@@ -94,8 +95,10 @@ function UserMenu() {
 
 export default function Navbar() {
     const user = useAuthStore(s => s.user)
+    const [searchOpen, setSearchOpen] = useState(false)
 
     return (
+        <>
         <nav className='sticky top-0 z-50 bg-bg-dark'>
 
             {/* Desktop */}
@@ -111,8 +114,7 @@ export default function Navbar() {
                     <NavLink href="/community">Community</NavLink>
                     <NavLink href="/lists">Lists</NavLink>
                     <div className="w-px h-5 bg-text/20 mx-1" />
-                    {/* search — overlay wired up later */}
-                    <button className="text-text hover:text-white transition-colors">
+                    <button onClick={() => setSearchOpen(true)} className="text-text hover:text-white transition-colors">
                         <Search size={20} />
                     </button>
 
@@ -144,8 +146,7 @@ export default function Navbar() {
                         <span className="font-outfit text-xl font-bold text-white">lumray</span>
                     </Link>
                     <div className='flex items-center gap-3'>
-                        {/* search icon always visible */}
-                        <button className="text-text hover:text-white transition-colors">
+                        <button onClick={() => setSearchOpen(true)} className="text-text hover:text-white transition-colors">
                             <Search size={18} />
                         </button>
                         {user ? (
@@ -173,5 +174,8 @@ export default function Navbar() {
             </div>
 
         </nav>
+
+        {searchOpen && <SearchModal onClose={() => setSearchOpen(false)} />}
+        </>
     )
 }

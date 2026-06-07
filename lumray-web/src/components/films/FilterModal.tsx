@@ -1,18 +1,21 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { X } from 'lucide-react'
 
 export interface ModalFilters {
   genres: string[]
   decades: string[]
   languages: string[]
+  runtime: string[]
 }
 
 export const DEFAULT_MODAL_FILTERS: ModalFilters = {
   genres: [],
   decades: [],
   languages: [],
+  runtime: [],
 }
 
 interface FilterModalProps {
@@ -67,14 +70,19 @@ function GridCheckbox({ label, checked, onChange }: { label: string; checked: bo
 
 export default function FilterModal({ filters, onApply, onClose }: FilterModalProps) {
   const [draft, setDraft] = useState<ModalFilters>({ ...filters })
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => { setMounted(true) }, [])
 
   const activeCount = draft.genres.length + draft.decades.length + draft.languages.length + draft.runtime.length
 
-  return (
-    <>
-      <div className="fixed inset-0 z-40 bg-black/60" onClick={onClose} />
+  if (!mounted) return null
 
-      <div className="fixed inset-y-0 right-0 z-50 flex w-full max-w-sm flex-col bg-bg-dark shadow-2xl">
+  return createPortal(
+    <>
+      <div className="fixed inset-0 z-9998 bg-black/60" onClick={onClose} />
+
+      <div className="fixed inset-y-0 right-0 z-9999 flex w-full max-w-sm flex-col bg-bg-dark shadow-2xl">
         <div className="flex items-center justify-between border-b border-text/10 px-6 py-5">
           <div className="flex items-center gap-2">
             <h2 className="font-outfit text-xl font-bold text-white">Filter</h2>
@@ -121,6 +129,16 @@ export default function FilterModal({ filters, onApply, onClose }: FilterModalPr
             </div>
           </div>
 
+          <div>
+            <SectionHeader title="Runtime" />
+            <div className="grid grid-cols-2 gap-x-2">
+              {RUNTIME_OPTIONS.map(r => (
+                <GridCheckbox key={r} label={r} checked={draft.runtime.includes(r)}
+                  onChange={() => setDraft(d => ({ ...d, runtime: toggle(d.runtime, r) }))} />
+              ))}
+            </div>
+          </div>
+
         </div>
 
         <div className="flex items-center gap-3 border-t border-text/10 px-6 py-5">
@@ -134,6 +152,7 @@ export default function FilterModal({ filters, onApply, onClose }: FilterModalPr
           </button>
         </div>
       </div>
-    </>
+    </>,
+    document.body
   )
 }
