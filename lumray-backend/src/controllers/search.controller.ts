@@ -8,22 +8,24 @@ type TmdbPerson = { id: number; name: string; profile_path: string | null; known
 export const globalSearch = async (req: Request, res: Response) => {
     try {
         const q    = (req.query.q as string)?.trim()
-        const type = (req.query.type as string) ?? 'all'  // all | movies | persons | lists
+        const type = (req.query.type as string) ?? 'all'  // all | movies | persons | lists | users
         const limit = Math.min(20, parseInt(req.query.limit as string) || 6)
 
         if (!q || q.length < 2) {
-            return res.json({ data: { movies: [], persons: [], lists: [] }, error: null, message: 'ok' })
+            return res.json({ data: { movies: [], persons: [], lists: [], users: [] }, error: null, message: 'ok' })
         }
 
         const wantMovies  = type === 'all' || type === 'movies'
         const wantPersons = type === 'all' || type === 'persons'
         const wantLists   = type === 'all' || type === 'lists'
+        const wantUsers   = type === 'all' || type === 'users'
 
         const movieLimit  = type === 'movies'  ? limit : 5
         const personLimit = type === 'persons' ? limit : 4
         const listLimit   = type === 'lists'   ? limit : 4
+        const userLimit   = type === 'users'   ? limit : 4
 
-        const [tmdbMovies, tmdbPersons, lists] = await Promise.all([
+        const [tmdbMovies, tmdbPersons, lists, users] = await Promise.all([
             wantMovies  ? tmdbService.search(q).catch(() => ({ results: [] }))       : Promise.resolve({ results: [] }),
             wantPersons ? tmdbService.searchPerson(q).catch(() => ({ results: [] })) : Promise.resolve({ results: [] }),
             wantLists
@@ -35,6 +37,18 @@ export const globalSearch = async (req: Request, res: Response) => {
                         _count: { select: { items: true } },
                         items:  { take: 4, include: { movie: { select: { posterPath: true } } } },
                     },
+                })
+                : Promise.resolve([]),
+            wantUsers
+                ? prisma.user.findMany({
+                    where: {
+                        OR: [
+                            { username: { contains: q, mode: 'insensitive' } },
+                            { name:     { contains: q, mode: 'insensitive' } },
+                        ],
+                    },
+                    take: userLimit,
+                    select: { id: true, username: true, name: true, avatar: true },
                 })
                 : Promise.resolve([]),
         ])
@@ -57,7 +71,7 @@ export const globalSearch = async (req: Request, res: Response) => {
                 department:  p.known_for_department ?? null,
             }))
 
-        return res.json({ data: { movies, persons, lists }, error: null, message: 'ok' })
+        return res.json({ data: { movies, persons, lists, users }, error: null, message: 'ok' })
     } catch (error) {
         return res.status(500).json({ data: null, error: 'Server error', message: String(error) })
     }

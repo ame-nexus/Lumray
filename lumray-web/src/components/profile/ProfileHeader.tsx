@@ -1,8 +1,9 @@
 'use client'
 
+import { useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
-import { Pencil } from 'lucide-react'
+import { Pencil, Share2, Check } from 'lucide-react'
 import { nameInitials } from '@/lib/tmdbImage'
 import { useLanguageStore } from '@/store/language.store'
 import { useT } from '@/lib/i18n'
@@ -47,6 +48,20 @@ export default function ProfileHeader({
   const lang        = useLanguageStore(s => s.lang)
   const t           = useT(lang)
   const displayName = name ?? username
+  const [copied, setCopied] = useState(false)
+
+  async function handleShare() {
+    const url = `${window.location.origin}/profile/${username}`
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: `${displayName} on Lumray`, url })
+      } else {
+        await navigator.clipboard.writeText(url)
+        setCopied(true)
+        setTimeout(() => setCopied(false), 1500)
+      }
+    } catch { /* user cancelled share or clipboard blocked — ignore */ }
+  }
 
   return (
     <section className="relative h-64 w-full overflow-hidden md:h-80 xl:h-96">
@@ -105,6 +120,15 @@ export default function ProfileHeader({
                 ) : (
                   <FollowButton userId={userId} />
                 )}
+                <button
+                  type="button"
+                  onClick={handleShare}
+                  aria-label="Share profile"
+                  className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1.5 font-roboto text-xs text-white backdrop-blur-sm transition-colors hover:bg-white/25"
+                >
+                  {copied ? <Check size={12} /> : <Share2 size={12} />}
+                  {copied ? 'Copied!' : 'Share'}
+                </button>
               </div>
 
               <p className="mt-1 font-roboto text-xs text-white/60">

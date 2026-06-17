@@ -69,7 +69,7 @@ const t = {
     search: {
       placeholder: 'Search films, cast, crew, lists…',
       all: 'All', recent: 'Recent searches', films: 'Films', castCrew: 'Cast & Crew',
-      lists: 'Lists', noResults: 'No results for', start: 'Start typing to search…',
+      lists: 'Lists', members: 'Members', noResults: 'No results for', start: 'Start typing to search…',
       open: 'to open', close: 'to close',
     },
     person: {
@@ -168,7 +168,7 @@ const t = {
     search: {
       placeholder: 'Rechercher films, acteurs, équipe, listes…',
       all: 'Tout', recent: 'Recherches récentes', films: 'Films', castCrew: 'Acteurs & Équipe',
-      lists: 'Listes', noResults: 'Aucun résultat pour', start: 'Commencez à taper…',
+      lists: 'Listes', members: 'Membres', noResults: 'Aucun résultat pour', start: 'Commencez à taper…',
       open: 'pour ouvrir', close: 'pour fermer',
     },
     person: {
@@ -267,7 +267,7 @@ const t = {
     search: {
       placeholder: 'ابحث عن أفلام، ممثلين، قوائم…',
       all: 'الكل', recent: 'عمليات البحث الأخيرة', films: 'الأفلام', castCrew: 'الممثلون وفريق العمل',
-      lists: 'القوائم', noResults: 'لا توجد نتائج لـ', start: 'ابدأ الكتابة للبحث…',
+      lists: 'القوائم', members: 'الأعضاء', noResults: 'لا توجد نتائج لـ', start: 'ابدأ الكتابة للبحث…',
       open: 'للفتح', close: 'للإغلاق',
     },
     person: {

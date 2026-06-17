@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom'
-import { Search, Clock, X, Film, Users, List } from 'lucide-react'
+import { Search, Clock, X, Film, Users, List, User } from 'lucide-react'
 import Image from 'next/image'
 import Link from 'next/link'
 import api from '@/services/api'
@@ -11,7 +11,7 @@ import { useT } from '@/lib/i18n'
 
 // ── types ──────────────────────────────────────────────────────
 
-type Tab = 'all' | 'films' | 'people' | 'lists'
+type Tab = 'all' | 'films' | 'people' | 'lists' | 'users'
 
 interface SearchMovie {
     tmdbId:      number
@@ -32,10 +32,17 @@ interface SearchList {
     _count: { items: number }
     items:  { movie: { posterPath: string | null } }[]
 }
+interface SearchUser {
+    id:       string
+    username: string
+    name:     string | null
+    avatar:   string | null
+}
 interface SearchResults {
     movies:  SearchMovie[]
     persons: SearchPerson[]
     lists:   SearchList[]
+    users:   SearchUser[]
 }
 
 // ── constants & helpers ────────────────────────────────────────
@@ -50,6 +57,7 @@ const TAB_ICONS: Record<Tab, React.ReactNode> = {
     films:  <Film   size={13} />,
     people: <Users  size={13} />,
     lists:  <List   size={13} />,
+    users:  <User   size={13} />,
 }
 
 // Per-tab API params
@@ -58,6 +66,7 @@ const TAB_PARAMS: Record<Tab, { type: string; limit: number }> = {
     films:  { type: 'movies',  limit: 12 },
     people: { type: 'persons', limit: 10 },
     lists:  { type: 'lists',   limit: 8  },
+    users:  { type: 'users',   limit: 12 },
 }
 
 // Module-level cache so it survives re-renders
@@ -207,7 +216,43 @@ function ListsView({ lists, onPick }: { lists: SearchList[]; onPick: (t: string)
     )
 }
 
-function AllView({ results, onPick, labels }: { results: SearchResults; onPick: (t: string) => void; labels: { films: string; castCrew: string; lists: string } }) {
+// User avatars are full URLs (Cloudinary / Google / pravatar), not TMDb paths
+function UserAvatar({ src, name, size = 40 }: { src: string | null; name: string; size?: number }) {
+    return (
+        <div className="relative shrink-0 overflow-hidden rounded-full bg-[#714ee4]" style={{ width: size, height: size }}>
+            {src ? (
+                <Image src={src} alt={name} fill className="object-cover" sizes={`${size}px`} />
+            ) : (
+                <span className="flex h-full w-full items-center justify-center text-xs font-semibold text-white">
+                    {name[0]?.toUpperCase()}
+                </span>
+            )}
+        </div>
+    )
+}
+
+function MembersView({ users, onPick }: { users: SearchUser[]; onPick: (t: string) => void }) {
+    return (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-1 p-3">
+            {users.map(u => (
+                <Link
+                    key={u.id}
+                    href={`/profile/${u.username}`}
+                    onClick={() => onPick(u.username)}
+                    className="flex items-center gap-3 rounded-xl px-3 py-2.5 hover:bg-white/5 transition-colors"
+                >
+                    <UserAvatar src={u.avatar} name={u.name ?? u.username} size={44} />
+                    <div className="min-w-0">
+                        <p className="font-outfit text-sm font-medium text-[#ede9fc] truncate">{u.name ?? u.username}</p>
+                        <p className="font-roboto text-xs text-[#7a7882] truncate">@{u.username}</p>
+                    </div>
+                </Link>
+            ))}
+        </div>
+    )
+}
+
+function AllView({ results, onPick, labels }: { results: SearchResults; onPick: (t: string) => void; labels: { films: string; castCrew: string; lists: string; members: string } }) {
     return (
         <div>
             {results.movies.length > 0 && (
@@ -254,6 +299,28 @@ function AllView({ results, onPick, labels }: { results: SearchResults; onPick: 
                 </>
             )}
 
+            {results.users.length > 0 && (
+                <>
+                    <SectionLabel icon={<User size={11} />} label={labels.members} />
+                    <div className="flex flex-col gap-0.5 px-3">
+                        {results.users.map(u => (
+                            <Link
+                                key={u.id}
+                                href={`/profile/${u.username}`}
+                                onClick={() => onPick(u.username)}
+                                className="flex items-center gap-3 rounded-xl px-3 py-2 hover:bg-white/5 transition-colors"
+                            >
+                                <UserAvatar src={u.avatar} name={u.name ?? u.username} size={36} />
+                                <div className="min-w-0">
+                                    <p className="font-outfit text-sm font-medium text-[#ede9fc] truncate">{u.name ?? u.username}</p>
+                                    <p className="font-roboto text-xs text-[#7a7882] truncate">@{u.username}</p>
+                                </div>
+                            </Link>
+                        ))}
+                    </div>
+                </>
+            )}
+
             {results.lists.length > 0 && (
                 <>
                     <SectionLabel icon={<List size={11} />} label={labels.lists} />
@@ -274,6 +341,7 @@ export default function SearchModal({ onClose }: { onClose: () => void }) {
         { key: 'all'    as Tab, label: t.search.all,    icon: TAB_ICONS.all    },
         { key: 'films'  as Tab, label: t.search.films,  icon: TAB_ICONS.films  },
         { key: 'people' as Tab, label: t.search.castCrew, icon: TAB_ICONS.people },
+        { key: 'users'  as Tab, label: t.search.members, icon: TAB_ICONS.users },
         { key: 'lists'  as Tab, label: t.search.lists,  icon: TAB_ICONS.lists  },
     ]
 
@@ -394,13 +462,14 @@ export default function SearchModal({ onClose }: { onClose: () => void }) {
     }
 
     const active    = query.trim().length >= 2
-    const hasAny    = !!results && (results.movies.length > 0 || results.persons.length > 0 || results.lists.length > 0)
+    const hasAny    = !!results && (results.movies.length > 0 || results.persons.length > 0 || results.lists.length > 0 || results.users.length > 0)
     const showEmpty = !recent.length && !active
 
     const tabCounts = results ? {
-        all:    results.movies.length + results.persons.length + results.lists.length,
+        all:    results.movies.length + results.persons.length + results.lists.length + results.users.length,
         films:  results.movies.length,
         people: results.persons.length,
+        users:  results.users.length,
         lists:  results.lists.length,
     } : null
 
@@ -523,9 +592,10 @@ export default function SearchModal({ onClose }: { onClose: () => void }) {
                     {/* Results by tab */}
                     {active && hasAny && (
                         <div className={loading ? 'opacity-50 pointer-events-none transition-opacity' : 'transition-opacity'}>
-                            {tab === 'all'    && <AllView    results={results!} onPick={handleResultClick} labels={{ films: t.search.films, castCrew: t.search.castCrew, lists: t.search.lists }} />}
+                            {tab === 'all'    && <AllView    results={results!} onPick={handleResultClick} labels={{ films: t.search.films, castCrew: t.search.castCrew, lists: t.search.lists, members: t.search.members }} />}
                             {tab === 'films'  && <FilmsGrid  movies={results!.movies}  onPick={handleResultClick} />}
                             {tab === 'people' && <PeopleGrid persons={results!.persons} onPick={handleResultClick} />}
+                            {tab === 'users'  && <MembersView users={results!.users}   onPick={handleResultClick} />}
                             {tab === 'lists'  && <ListsView  lists={results!.lists}    onPick={handleResultClick} />}
                         </div>
                     )}

@@ -5,7 +5,10 @@ import { prisma } from '../lib/prisma'
 passport.use(new GoogleStrategy({
     clientID: process.env.GOOGLE_CLIENT_ID!,
     clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
-    callbackURL: '/api/auth/google/callback'
+    callbackURL: '/api/auth/google/callback',
+    // Render runs behind a proxy — honour X-Forwarded-Proto so the redirect_uri
+    // is built as https:// (otherwise Google rejects it as a mismatch).
+    proxy: true,
 }, async (_accessToken, _refreshToken, profile, done) => {
     try {
         const email = profile.emails?.[0].value
