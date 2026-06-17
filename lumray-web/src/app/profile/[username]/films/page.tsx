@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { Suspense, useEffect, useState, useCallback } from 'react'
 import { useParams, useRouter, usePathname, useSearchParams } from 'next/navigation'
 import { SlidersHorizontal, ChevronDown } from 'lucide-react'
 import MoviePoster from '@/components/films/MoviePoster'
@@ -21,6 +21,14 @@ interface ProfileFilm {
 }
 
 export default function ProfileFilmsPage() {
+  return (
+    <Suspense fallback={null}>
+      <ProfileFilmsPageContent />
+    </Suspense>
+  )
+}
+
+function ProfileFilmsPageContent() {
   const params       = useParams()
   const router       = useRouter()
   const pathname     = usePathname()
