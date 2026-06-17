@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import { SlidersHorizontal, LayoutGrid, Grid3X3, ChevronDown, ArrowUpDown, Check } from 'lucide-react'
 import api from '@/services/api'
@@ -52,6 +52,14 @@ function LoadingSkeleton({ layout }: { layout: Layout }) {
 }
 
 export default function FilmsPage() {
+  return (
+    <Suspense fallback={null}>
+      <FilmsPageContent />
+    </Suspense>
+  )
+}
+
+function FilmsPageContent() {
   const router       = useRouter()
   const pathname     = usePathname()
   const searchParams = useSearchParams()

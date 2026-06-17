@@ -7,7 +7,7 @@ export type { GenreThemesSectionProps } from './GenreThemesSection'
 export { default as MovieActions, DUMMY_MOVIE_ACTIONS } from './MovieActions'
 export type { MovieActionsProps } from './MovieActions'
 
-export { default as MovieCommunity, DUMMY_MOVIE_COMMUNITY } from './MovieCommunity'
+export { default as MovieCommunity } from './MovieCommunity'
 export type { MovieCommunityProps } from './MovieCommunity'
 
 export { default as MovieInfo, DUMMY_MOVIE_INFO, formatRuntime } from './MovieInfo'

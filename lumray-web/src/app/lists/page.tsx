@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { Suspense, useEffect, useState, useCallback } from 'react'
 import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import Image from 'next/image'
 import Link from 'next/link'
@@ -78,6 +78,14 @@ function ListCard({ list }: { list: PublicList }) {
 }
 
 export default function ListsPage() {
+  return (
+    <Suspense fallback={null}>
+      <ListsPageContent />
+    </Suspense>
+  )
+}
+
+function ListsPageContent() {
   const router       = useRouter()
   const pathname     = usePathname()
   const searchParams = useSearchParams()
