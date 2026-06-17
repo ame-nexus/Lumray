@@ -6,6 +6,9 @@ import { SlidersHorizontal, LayoutGrid, Grid3X3, ChevronDown, ArrowUpDown, Check
 import api from '@/services/api'
 import FilterModal, { ModalFilters } from '@/components/films/FilterModal'
 import MoviePoster from '@/components/films/MoviePoster'
+import { useLanguageStore } from '@/store/language.store'
+import { useT } from '@/lib/i18n'
+import { useHydrateFilmStatuses } from '@/hooks/useFilmStatuses'
 
 type Tab = 'all' | 'popular' | 'top-rated' | 'new-releases' | 'upcoming' | 'by-genre' | 'by-year' | 'by-decade'
 type Layout = 'comfortable' | 'compact'
@@ -21,24 +24,6 @@ interface BrowseMovie {
   popularity: number
   genres: { genre: { name: string } }[]
 }
-
-const TABS: { id: Tab; label: string }[] = [
-  { id: 'all',          label: 'All' },
-  { id: 'popular',      label: 'Popular' },
-  { id: 'top-rated',    label: 'Top rated' },
-  { id: 'new-releases', label: 'New releases' },
-  { id: 'upcoming',     label: 'Upcoming' },
-  { id: 'by-genre',     label: 'By genre' },
-  { id: 'by-year',      label: 'By year' },
-  { id: 'by-decade',    label: 'By decade' },
-]
-
-const SORT_OPTIONS = [
-  { label: 'Popular',      value: 'popular' },
-  { label: 'Top rated',    value: 'top-rated' },
-  { label: 'New releases', value: 'new-releases' },
-  { label: 'A–Z',          value: 'a-z' },
-]
 
 const GENRES  = ['All genres', 'Drama', 'Action', 'Thriller', 'Animation', 'Romance', 'Comedy', 'Science Fiction', 'Horror', 'Crime', 'Documentary', 'Fantasy', 'Mystery', 'Adventure']
 const YEARS   = Array.from({ length: 56 }, (_, i) => String(2025 - i))
@@ -67,35 +52,51 @@ function LoadingSkeleton({ layout }: { layout: Layout }) {
 }
 
 export default function FilmsPage() {
-  const router      = useRouter()
-  const pathname    = usePathname()
+  const router       = useRouter()
+  const pathname     = usePathname()
   const searchParams = useSearchParams()
+  const lang         = useLanguageStore(s => s.lang)
+  const t            = useT(lang)
 
-  // ── Derive all UI state from URL ────────────────────────────────────────
-  const tab          = (searchParams.get('tab') as Tab) || 'popular'
-  const sort         = searchParams.get('sort') || 'popular'
-  const page         = parseInt(searchParams.get('page') || '1', 10)
-  const layout       = (searchParams.get('layout') as Layout) || 'comfortable'
-  const activePills  = searchParams.get('pills')?.split(',').filter(Boolean) ?? []
+  const tab         = (searchParams.get('tab') as Tab) || 'popular'
+  const sort        = searchParams.get('sort') || 'popular'
+  const page        = parseInt(searchParams.get('page') || '1', 10)
+  const layout      = (searchParams.get('layout') as Layout) || 'comfortable'
+  const activePills = searchParams.get('pills')?.split(',').filter(Boolean) ?? []
 
   const modalFilters: ModalFilters = {
     genres:    searchParams.get('fg')?.split(',').filter(Boolean)  ?? [],
     decades:   searchParams.get('fd')?.split(',').filter(Boolean)  ?? [],
     languages: searchParams.get('fl')?.split(',').filter(Boolean)  ?? [],
+    runtime:   searchParams.get('fr')?.split(',').filter(Boolean)  ?? [],
   }
 
-  // ── UI-only state (not worth putting in URL) ─────────────────────────────
   const [sortOpen,      setSortOpen]      = useState(false)
   const [filterOpen,    setFilterOpen]    = useState(false)
   const [pillsExpanded, setPillsExpanded] = useState(false)
+  const [movies,        setMovies]        = useState<BrowseMovie[]>([])
+  const [total,         setTotal]         = useState(0)
+  const [totalPages,    setTotalPages]    = useState(1)
+  const [loading,       setLoading]       = useState(true)
 
-  // ── Data state ───────────────────────────────────────────────────────────
-  const [movies,     setMovies]     = useState<BrowseMovie[]>([])
-  const [total,      setTotal]      = useState(0)
-  const [totalPages, setTotalPages] = useState(1)
-  const [loading,    setLoading]    = useState(true)
+  const TABS: { id: Tab; label: string }[] = [
+    { id: 'all',          label: t.films.all },
+    { id: 'popular',      label: t.films.popular },
+    { id: 'top-rated',    label: t.films.topRated },
+    { id: 'new-releases', label: t.films.newReleases },
+    { id: 'upcoming',     label: t.films.upcoming },
+    { id: 'by-genre',     label: t.films.byGenre },
+    { id: 'by-year',      label: t.films.byYear },
+    { id: 'by-decade',    label: t.films.byDecade },
+  ]
 
-  // ── URL writer ───────────────────────────────────────────────────────────
+  const SORT_OPTIONS = [
+    { label: t.films.sortPopular,     value: 'popular' },
+    { label: t.films.sortTopRated,    value: 'top-rated' },
+    { label: t.films.sortNewReleases, value: 'new-releases' },
+    { label: t.films.sortAZ,          value: 'a-z' },
+  ]
+
   function updateParams(updates: Record<string, string | null>) {
     const params = new URLSearchParams(searchParams.toString())
     for (const [key, value] of Object.entries(updates)) {
@@ -105,12 +106,10 @@ export default function FilmsPage() {
     router.replace(`${pathname}?${params.toString()}`)
   }
 
-  // ── Handlers ─────────────────────────────────────────────────────────────
   function handleTabChange(newTab: Tab) {
     const params = new URLSearchParams()
     params.set('tab', newTab)
     if (layout !== 'comfortable') params.set('layout', layout)
-    // Default sort per tab
     if (newTab === 'all')      params.set('sort', 'a-z')
     if (newTab === 'upcoming') params.set('sort', 'upcoming')
     router.replace(`${pathname}?${params.toString()}`)
@@ -138,18 +137,18 @@ export default function FilmsPage() {
       fg:   f.genres.length    ? f.genres.join(',')    : null,
       fd:   f.decades.length   ? f.decades.join(',')   : null,
       fl:   f.languages.length ? f.languages.join(',') : null,
+      fr:   f.runtime.length   ? f.runtime.join(',')   : null,
       page: null,
     })
   }
 
-  // ── Fetch ────────────────────────────────────────────────────────────────
   useEffect(() => {
     const effectiveSort =
       tab === 'popular'      ? 'popular'      :
       tab === 'top-rated'    ? 'top-rated'    :
       tab === 'new-releases' ? 'new-releases' :
       tab === 'upcoming'     ? 'upcoming'     :
-      sort  // 'all' and filter tabs use the sort dropdown value
+      sort
 
     const allGenres  = [...(tab === 'by-genre'  ? activePills : []), ...modalFilters.genres]
     const allDecades = [...(tab === 'by-decade' ? activePills : []), ...modalFilters.decades]
@@ -178,16 +177,25 @@ export default function FilmsPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams])
 
-  const pills            = getPills(tab)
-  const activeFilterCount = modalFilters.genres.length + modalFilters.decades.length + modalFilters.languages.length
+  // Hydrate logged / watchlist / favourite state for the visible posters
+  useHydrateFilmStatuses(movies.map(m => m.id))
+
+  const pills             = getPills(tab)
+  const activeFilterCount = modalFilters.genres.length + modalFilters.decades.length + modalFilters.languages.length + modalFilters.runtime.length
+
+  // For genre pills: translate "All genres" label only, keep others as English (used as filter values)
+  function getPillLabel(pill: string): string {
+    if (pill === 'All genres') return t.films.allGenres
+    return pill
+  }
 
   return (
     <main className="px-6 md:px-12 xl:px-60 py-10">
 
       {/* Header */}
       <div className="mb-8">
-        <h1 className="font-outfit text-3xl md:text-4xl font-bold text-white">Films</h1>
-        <p className="mt-1 font-roboto text-text-muted">Browse, filter and discover films from across the world</p>
+        <h1 className="font-outfit text-3xl md:text-4xl font-bold text-white">{t.films.title}</h1>
+        <p className="mt-1 font-roboto text-text-muted">{t.films.subtitle}</p>
       </div>
 
       {/* Tab bar */}
@@ -196,14 +204,14 @@ export default function FilmsPage() {
           className="flex items-center gap-6 overflow-x-auto"
           style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' } as React.CSSProperties}
         >
-          {TABS.map(t => (
-            <button key={t.id} onClick={() => handleTabChange(t.id)}
+          {TABS.map(tb => (
+            <button key={tb.id} onClick={() => handleTabChange(tb.id)}
               className={`-mb-px whitespace-nowrap border-b-2 pb-3 font-roboto text-sm font-medium transition-colors md:text-base ${
-                tab === t.id
+                tab === tb.id
                   ? 'border-purple-light text-purple-light'
                   : 'border-transparent text-text-muted hover:text-text'
               }`}>
-              {t.label}
+              {tb.label}
             </button>
           ))}
         </div>
@@ -221,7 +229,7 @@ export default function FilmsPage() {
                       ? 'border-purple-light bg-purple-light text-bg'
                       : 'border-text/20 bg-transparent text-text hover:border-text/40'
                   }`}>
-                  {pill}
+                  {getPillLabel(pill)}
                 </button>
               ))}
             </div>
@@ -242,7 +250,7 @@ export default function FilmsPage() {
               <button onClick={() => setSortOpen(v => !v)}
                 className="flex items-center gap-2 rounded-full border border-text/20 px-4 py-1.5 font-roboto text-sm font-medium text-text transition-colors hover:border-text/40">
                 <ArrowUpDown size={14} />
-                Sort
+                {t.films.sort}
                 <ChevronDown size={12} className={`transition-transform duration-200 ${sortOpen ? 'rotate-180' : ''}`} />
               </button>
               {sortOpen && (
@@ -267,7 +275,7 @@ export default function FilmsPage() {
           <button onClick={() => setFilterOpen(true)}
             className="relative flex items-center gap-2 rounded-full bg-purple px-4 py-1.5 font-roboto text-sm font-medium text-white transition-colors hover:bg-purple-deep">
             <SlidersHorizontal size={14} />
-            Filter
+            {t.films.filter}
             {activeFilterCount > 0 && (
               <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-white text-[9px] font-bold text-purple">
                 {activeFilterCount}
@@ -292,7 +300,7 @@ export default function FilmsPage() {
 
       {total > 0 && !loading && (
         <p className="mb-4 font-roboto text-sm text-text-muted">
-          {total.toLocaleString()} films found
+          {total.toLocaleString()} {t.films.filmsFound}
         </p>
       )}
 
@@ -324,14 +332,14 @@ export default function FilmsPage() {
           onClick={() => updateParams({ page: String(Math.max(1, page - 1)) })}
           disabled={page === 1}
           className="rounded-full border border-text/20 px-6 py-2 font-roboto text-sm font-medium text-text transition-colors disabled:opacity-30 hover:border-text/40">
-          Prev
+          {t.films.prev}
         </button>
-        <span className="font-roboto text-sm text-text-muted">Page {page} of {totalPages}</span>
+        <span className="font-roboto text-sm text-text-muted">{t.films.page} {page} {t.films.of} {totalPages}</span>
         <button
           onClick={() => updateParams({ page: String(page + 1) })}
           disabled={page >= totalPages}
           className="rounded-full bg-purple px-6 py-2 font-roboto text-sm font-medium text-white transition-colors hover:bg-purple-deep disabled:opacity-30">
-          Next
+          {t.films.next}
         </button>
       </div>
 

@@ -4,6 +4,8 @@ import { useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { nameInitials, tmdbPoster } from '@/lib/tmdbImage'
+import { useLanguageStore } from '@/store/language.store'
+import { useT } from '@/lib/i18n'
 
 export interface CastMember {
   id: string
@@ -64,6 +66,8 @@ function PersonCircle({
 
 export default function CastCrewSection({ cast, crew }: CastCrewSectionProps) {
   const [tab, setTab] = useState<Tab>('cast')
+  const lang = useLanguageStore(s => s.lang)
+  const t    = useT(lang)
   const people =
     tab === 'cast'
       ? cast.slice(0, 6).map((p) => ({
@@ -94,7 +98,7 @@ export default function CastCrewSection({ cast, crew }: CastCrewSectionProps) {
                 : 'text-text-muted hover:text-text-dim'
             }`}
           >
-            Cast
+            {t.movie.cast}
           </button>
           <button
             type="button"
@@ -105,14 +109,14 @@ export default function CastCrewSection({ cast, crew }: CastCrewSectionProps) {
                 : 'text-text-muted hover:text-text-dim'
             }`}
           >
-            Crew
+            {t.movie.crew}
           </button>
         </div>
         <Link
           href="#"
           className="shrink-0 font-roboto text-xs text-purple-light underline"
         >
-          see full cast →
+          {t.movie.fullCast}
         </Link>
       </div>
 

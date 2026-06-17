@@ -5,6 +5,8 @@ import { createPortal } from 'react-dom'
 import { X, Plus, Check, Lock, Globe } from 'lucide-react'
 import api from '@/services/api'
 import { useAuthStore } from '@/store/auth.store'
+import { useLanguageStore } from '@/store/language.store'
+import { useT } from '@/lib/i18n'
 
 interface List {
   id: string
@@ -20,6 +22,8 @@ interface AddToListsModalProps {
 
 export default function AddToListsModal({ movieId, onClose }: AddToListsModalProps) {
   const user = useAuthStore(s => s.user)
+  const lang = useLanguageStore(s => s.lang)
+  const t    = useT(lang)
   const [lists,     setLists]     = useState<List[]>([])
   const [added,     setAdded]     = useState<Set<string>>(new Set())
   const [loading,   setLoading]   = useState(true)
@@ -77,7 +81,7 @@ export default function AddToListsModal({ movieId, onClose }: AddToListsModalPro
 
       <div className="relative z-10 w-full max-w-sm rounded-2xl bg-surface-2 shadow-2xl">
         <div className="flex items-center justify-between border-b border-white/10 px-5 py-4">
-          <h2 className="font-outfit text-base font-bold text-white">Add to list</h2>
+          <h2 className="font-outfit text-base font-bold text-white">{t.list.title}</h2>
           <button type="button" onClick={onClose} className="rounded-full p-1.5 text-text-muted hover:bg-white/10 hover:text-white">
             <X size={16} />
           </button>
@@ -85,9 +89,9 @@ export default function AddToListsModal({ movieId, onClose }: AddToListsModalPro
 
         <div className="px-5 py-4 space-y-2 max-h-72 overflow-y-auto">
           {loading ? (
-            <p className="py-4 text-center font-roboto text-sm text-text-muted">Loading…</p>
+            <p className="py-4 text-center font-roboto text-sm text-text-muted">{t.list.loading}</p>
           ) : lists.length === 0 ? (
-            <p className="py-4 text-center font-roboto text-sm text-text-muted">No lists yet.</p>
+            <p className="py-4 text-center font-roboto text-sm text-text-muted">{t.list.noLists}</p>
           ) : (
             lists.map(list => (
               <button
@@ -103,7 +107,7 @@ export default function AddToListsModal({ movieId, onClose }: AddToListsModalPro
                   }
                   <div>
                     <p className="font-roboto text-sm font-medium text-text">{list.name}</p>
-                    <p className="font-roboto text-xs text-text-muted">{list._count.items} films</p>
+                    <p className="font-roboto text-xs text-text-muted">{list._count.items} {t.list.films}</p>
                   </div>
                 </div>
                 {added.has(list.id) && <Check size={16} className="text-purple-light" />}
@@ -119,7 +123,7 @@ export default function AddToListsModal({ movieId, onClose }: AddToListsModalPro
               value={newName}
               onChange={e => setNewName(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && createAndAdd()}
-              placeholder="New list name…"
+              placeholder={t.list.placeholder}
               className="flex-1 rounded-lg border border-white/10 bg-surface px-3 py-2 font-roboto text-sm text-text placeholder-text-muted outline-none focus:border-purple-light"
             />
             <button
@@ -138,8 +142,8 @@ export default function AddToListsModal({ movieId, onClose }: AddToListsModalPro
             className="flex items-center gap-2 font-roboto text-xs text-text-muted hover:text-text"
           >
             {isPublic
-              ? <><Globe size={13} /> Public list</>
-              : <><Lock  size={13} /> Private list</>
+              ? <><Globe size={13} /> {t.list.public}</>
+              : <><Lock  size={13} /> {t.list.private}</>
             }
           </button>
         </div>

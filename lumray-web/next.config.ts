@@ -1,6 +1,11 @@
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
+  // Pin the workspace root — the monorepo has a root lockfile (for `concurrently`)
+  // plus this project's own, which otherwise makes Turbopack guess the wrong root.
+  turbopack: {
+    root: __dirname,
+  },
   images: {
     remotePatterns: [
       {
@@ -22,6 +27,10 @@ const nextConfig: NextConfig = {
       {
         protocol: 'https',
         hostname: '*.mzstatic.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'res.cloudinary.com',
       },
     ],
     minimumCacheTTL: 86400,

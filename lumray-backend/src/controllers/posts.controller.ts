@@ -2,7 +2,7 @@ import { Request, Response } from 'express'
 import { prisma } from '../lib/prisma'
 import { AuthRequest } from '../middleware/auth.middleware'
 
-export const getPosts = async (req: Request, res: Response) => {
+export const getPosts = async (req: AuthRequest, res: Response) => {
     try {
         const page  = Math.max(1, parseInt(req.query.page as string) || 1)
         const limit = Math.min(50, parseInt(req.query.limit as string) || 20)
@@ -18,18 +18,44 @@ export const getPosts = async (req: Request, res: Response) => {
                 take: limit,
                 include: {
                     user: { select: { id: true, username: true, avatar: true } },
-                    movie: { select: { id: true, tmdbId: true, title: true, posterPath: true } },
+                    movie: { select: { id: true, tmdbId: true, title: true, posterPath: true, releaseDate: true } },
                     _count: { select: { likes: true, comments: true } },
                 },
             }),
             prisma.post.count({ where }),
         ])
 
+        let likedSet = new Set<string>()
+        if (req.user?.id) {
+            const likes = await prisma.postLike.findMany({
+                where: { userId: req.user.id, postId: { in: posts.map(p => p.id) } },
+                select: { postId: true },
+            })
+            likedSet = new Set(likes.map(l => l.postId))
+        }
+
         return res.json({
-            data: { posts, total, page, totalPages: Math.ceil(total / limit) },
+            data: {
+                posts: posts.map(p => ({ ...p, isLiked: likedSet.has(p.id) })),
+                total, page, totalPages: Math.ceil(total / limit),
+            },
             error: null,
             message: 'ok',
         })
+    } catch (error) {
+        return res.status(500).json({ data: null, error: 'Server error', message: String(error) })
+    }
+}
+
+export const getPostComments = async (req: Request, res: Response) => {
+    try {
+        const { id: postId } = req.params
+        const comments = await prisma.comment.findMany({
+            where: { postId },
+            orderBy: { createdAt: 'asc' },
+            include: { user: { select: { id: true, username: true, avatar: true } } },
+        })
+        return res.json({ data: comments, error: null, message: 'ok' })
     } catch (error) {
         return res.status(500).json({ data: null, error: 'Server error', message: String(error) })
     }
@@ -51,7 +77,7 @@ export const createPost = async (req: AuthRequest, res: Response) => {
             },
             include: {
                 user: { select: { id: true, username: true, avatar: true } },
-                movie: { select: { id: true, tmdbId: true, title: true, posterPath: true } },
+                movie: { select: { id: true, tmdbId: true, title: true, posterPath: true, releaseDate: true } },
                 _count: { select: { likes: true, comments: true } },
             },
         })

@@ -1,6 +1,10 @@
+'use client'
+
 import Image from 'next/image'
 import Link from 'next/link'
 import { tmdbPoster } from '@/lib/tmdbImage'
+import { useLanguageStore } from '@/store/language.store'
+import { useT } from '@/lib/i18n'
 
 export interface RecentDiaryRowProps {
   username: string
@@ -13,20 +17,27 @@ export interface RecentDiaryRowProps {
 }
 
 export default function RecentDiaryRow({ username, entries }: RecentDiaryRowProps) {
+  const lang    = useLanguageStore(s => s.lang)
+  const t       = useT(lang)
   const visible = entries.slice(0, 4)
 
   return (
     <section>
       <div className="mb-4 flex items-center justify-between gap-4">
-        <h2 className="font-outfit text-lg font-semibold text-text">Recent diary entries</h2>
-        <Link
-          href={`/profile/${username}/diary`}
-          className="font-roboto text-sm text-purple-light hover:text-text transition-colors"
-        >
-          more →
-        </Link>
+        <h2 className="font-outfit text-lg font-semibold text-text">{t.profile.recentDiary}</h2>
+        {entries.length > 0 && (
+          <Link
+            href={`/profile/${username}/diary`}
+            className="font-roboto text-sm text-purple-light transition-colors hover:text-text"
+          >
+            {t.profile.more}
+          </Link>
+        )}
       </div>
 
+      {entries.length === 0 ? (
+        <p className="py-6 font-roboto text-sm text-text-muted">{t.profile.noDiary}</p>
+      ) : (
       <div className="grid grid-cols-3 gap-3 md:grid-cols-4">
         {visible.map((entry) => {
           const src = entry.movie.posterPath
@@ -56,6 +67,7 @@ export default function RecentDiaryRow({ username, entries }: RecentDiaryRowProp
           )
         })}
       </div>
+      )}
     </section>
   )
 }

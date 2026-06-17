@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { X } from 'lucide-react'
+import { useLanguageStore } from '@/store/language.store'
+import { useT } from '@/lib/i18n'
 
 export interface ModalFilters {
   genres: string[]
@@ -45,7 +47,7 @@ const LANGUAGE_OPTIONS = [
   { label: 'Chinese',    code: 'zh' },
 ]
 
-const RUNTIME_OPTIONS = ['Under 90 min', '90–120 min', '120–180 min', 'Over 180 min']
+type RuntimeValue = 'under90' | '90to120' | '120to180' | 'over180'
 
 function SectionHeader({ title }: { title: string }) {
   return (
@@ -71,6 +73,15 @@ function GridCheckbox({ label, checked, onChange }: { label: string; checked: bo
 export default function FilterModal({ filters, onApply, onClose }: FilterModalProps) {
   const [draft, setDraft] = useState<ModalFilters>({ ...filters })
   const [mounted, setMounted] = useState(false)
+  const lang = useLanguageStore(s => s.lang)
+  const t    = useT(lang)
+
+  const runtimeOptions: { label: string; value: RuntimeValue }[] = [
+    { label: t.films.under90,   value: 'under90'   },
+    { label: t.films.r90to120,  value: '90to120'   },
+    { label: t.films.r120to180, value: '120to180'  },
+    { label: t.films.over180,   value: 'over180'   },
+  ]
 
   useEffect(() => { setMounted(true) }, [])
 
@@ -85,7 +96,7 @@ export default function FilterModal({ filters, onApply, onClose }: FilterModalPr
       <div className="fixed inset-y-0 right-0 z-9999 flex w-full max-w-sm flex-col bg-bg-dark shadow-2xl">
         <div className="flex items-center justify-between border-b border-text/10 px-6 py-5">
           <div className="flex items-center gap-2">
-            <h2 className="font-outfit text-xl font-bold text-white">Filter</h2>
+            <h2 className="font-outfit text-xl font-bold text-white">{t.films.filterTitle}</h2>
             {activeCount > 0 && (
               <span className="rounded-full bg-purple px-2 py-0.5 font-roboto text-xs text-white">
                 {activeCount}
@@ -100,7 +111,7 @@ export default function FilterModal({ filters, onApply, onClose }: FilterModalPr
         <div className="flex-1 overflow-y-auto px-6 py-6 flex flex-col gap-8">
 
           <div>
-            <SectionHeader title="Genre" />
+            <SectionHeader title={t.films.filterGenre} />
             <div className="grid grid-cols-2 gap-x-2">
               {GENRE_OPTIONS.map(g => (
                 <GridCheckbox key={g} label={g} checked={draft.genres.includes(g)}
@@ -110,7 +121,7 @@ export default function FilterModal({ filters, onApply, onClose }: FilterModalPr
           </div>
 
           <div>
-            <SectionHeader title="Decade" />
+            <SectionHeader title={t.films.filterDecade} />
             <div className="grid grid-cols-2 gap-x-2">
               {DECADE_OPTIONS.map(d => (
                 <GridCheckbox key={d} label={d} checked={draft.decades.includes(d)}
@@ -120,21 +131,21 @@ export default function FilterModal({ filters, onApply, onClose }: FilterModalPr
           </div>
 
           <div>
-            <SectionHeader title="Language" />
+            <SectionHeader title={t.films.filterLanguage} />
             <div className="grid grid-cols-2 gap-x-2">
-              {LANGUAGE_OPTIONS.map(lang => (
-                <GridCheckbox key={lang.code} label={lang.label} checked={draft.languages.includes(lang.code)}
-                  onChange={() => setDraft(d => ({ ...d, languages: toggle(d.languages, lang.code) }))} />
+              {LANGUAGE_OPTIONS.map(l => (
+                <GridCheckbox key={l.code} label={l.label} checked={draft.languages.includes(l.code)}
+                  onChange={() => setDraft(d => ({ ...d, languages: toggle(d.languages, l.code) }))} />
               ))}
             </div>
           </div>
 
           <div>
-            <SectionHeader title="Runtime" />
+            <SectionHeader title={t.films.filterRuntime} />
             <div className="grid grid-cols-2 gap-x-2">
-              {RUNTIME_OPTIONS.map(r => (
-                <GridCheckbox key={r} label={r} checked={draft.runtime.includes(r)}
-                  onChange={() => setDraft(d => ({ ...d, runtime: toggle(d.runtime, r) }))} />
+              {runtimeOptions.map(r => (
+                <GridCheckbox key={r.value} label={r.label} checked={draft.runtime.includes(r.value)}
+                  onChange={() => setDraft(d => ({ ...d, runtime: toggle(d.runtime, r.value) }))} />
               ))}
             </div>
           </div>
@@ -144,11 +155,11 @@ export default function FilterModal({ filters, onApply, onClose }: FilterModalPr
         <div className="flex items-center gap-3 border-t border-text/10 px-6 py-5">
           <button onClick={() => setDraft(DEFAULT_MODAL_FILTERS)}
             className="flex-1 rounded-full border border-text/20 py-2.5 font-roboto text-sm font-medium text-text transition-colors hover:border-text/40">
-            Reset
+            {t.films.reset}
           </button>
           <button onClick={() => { onApply(draft); onClose() }}
             className="flex-1 rounded-full bg-purple py-2.5 font-roboto text-sm font-medium text-white transition-colors hover:bg-purple-deep">
-            Apply
+            {t.films.apply}
           </button>
         </div>
       </div>

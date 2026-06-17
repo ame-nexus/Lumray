@@ -2,6 +2,73 @@ import { Request, Response } from 'express'
 import { prisma } from '../lib/prisma'
 import { AuthRequest } from '../middleware/auth.middleware'
 
+export const getAllPublicLists = async (req: Request, res: Response) => {
+    try {
+        const page  = Math.max(1, parseInt(req.query.page as string) || 1)
+        const limit = 24
+        const q     = (req.query.q as string | undefined)?.trim()
+
+        const where = {
+            isPublic: true,
+            ...(q ? { name: { contains: q, mode: 'insensitive' as const } } : {}),
+        }
+
+        const [lists, total] = await Promise.all([
+            prisma.list.findMany({
+                where,
+                orderBy: { updatedAt: 'desc' },
+                skip: (page - 1) * limit,
+                take: limit,
+                include: {
+                    user: { select: { username: true, avatar: true } },
+                    _count: { select: { items: true } },
+                    items: {
+                        take: 4,
+                        orderBy: { order: 'asc' },
+                        include: { movie: { select: { posterPath: true, title: true } } },
+                    },
+                },
+            }),
+            prisma.list.count({ where }),
+        ])
+
+        return res.json({ data: { lists, total, page, totalPages: Math.ceil(total / limit) }, error: null, message: 'ok' })
+    } catch (error) {
+        return res.status(500).json({ data: null, error: 'Server error', message: String(error) })
+    }
+}
+
+export const getListDetail = async (req: AuthRequest, res: Response) => {
+    try {
+        const { id } = req.params
+
+        const list = await prisma.list.findUnique({
+            where: { id },
+            include: {
+                user: { select: { id: true, username: true, avatar: true } },
+                _count: { select: { items: true } },
+                items: {
+                    orderBy: { order: 'asc' },
+                    include: {
+                        movie: {
+                            select: { id: true, tmdbId: true, title: true, posterPath: true, releaseDate: true, voteAverage: true, voteCount: true },
+                        },
+                    },
+                },
+            },
+        })
+
+        if (!list) return res.status(404).json({ data: null, error: 'Not found', message: 'List not found' })
+        if (!list.isPublic && list.user.id !== req.user?.id) {
+            return res.status(403).json({ data: null, error: 'Forbidden', message: 'This list is private' })
+        }
+
+        return res.json({ data: list, error: null, message: 'ok' })
+    } catch (error) {
+        return res.status(500).json({ data: null, error: 'Server error', message: String(error) })
+    }
+}
+
 export const getLists = async (req: Request, res: Response) => {
     try {
         const { userId } = req.query

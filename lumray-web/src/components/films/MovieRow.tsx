@@ -9,6 +9,7 @@ import MoviePoster from './MoviePoster'
 
 export interface MovieRowMovie {
   id: number
+  dbId?: string
   title: string
   posterPath: string
   year?: string | number
@@ -24,7 +25,7 @@ export interface MovieRowProps {
 
 const VISIBLE = 6
 
-export default function MovieRow({ title, movies, moreHref = '/films' }: MovieRowProps) {
+export default function MovieRow({ title, movies, moreHref }: MovieRowProps) {
   const [page, setPage] = useState(0)
   const pageCount = Math.max(1, Math.ceil(movies.length / VISIBLE))
   const canPrev = page > 0
@@ -37,12 +38,14 @@ export default function MovieRow({ title, movies, moreHref = '/films' }: MovieRo
       {/* Header */}
       <div className="mb-4 flex items-center justify-between gap-4">
         <h2 className="font-outfit text-lg font-bold text-text lg:text-xl">{title}</h2>
-        <Link
-          href={moreHref}
-          className="shrink-0 font-roboto text-sm text-white underline underline-offset-2 transition-colors hover:text-text-muted"
-        >
-          more
-        </Link>
+        {moreHref && (
+          <Link
+            href={moreHref}
+            className="shrink-0 font-roboto text-sm text-white underline underline-offset-2 transition-colors hover:text-text-muted"
+          >
+            more
+          </Link>
+        )}
       </div>
 
       {/* Desktop: 6 posters */}
@@ -52,6 +55,7 @@ export default function MovieRow({ title, movies, moreHref = '/films' }: MovieRo
             <MoviePoster
               key={movie.id}
               id={movie.id}
+              dbId={movie.dbId}
               title={movie.title}
               posterPath={movie.posterPath}
               year={movie.year}
@@ -98,6 +102,7 @@ export default function MovieRow({ title, movies, moreHref = '/films' }: MovieRo
             <SwiperSlide key={movie.id}>
               <MoviePoster
                 id={movie.id}
+                dbId={movie.dbId}
                 title={movie.title}
                 posterPath={movie.posterPath}
                 year={movie.year}

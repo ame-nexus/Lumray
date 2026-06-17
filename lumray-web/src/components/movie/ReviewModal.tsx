@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { X, Star, StarHalf } from 'lucide-react'
 import api from '@/services/api'
+import { useLanguageStore } from '@/store/language.store'
+import { useT } from '@/lib/i18n'
 
 interface ReviewModalProps {
   movieId: string
@@ -25,6 +27,8 @@ export default function ReviewModal({ movieId, movieTitle, initialRating = 0, on
   const [saving,  setSaving]  = useState(false)
   const [error,   setError]   = useState<string | null>(null)
   const [mounted, setMounted] = useState(false)
+  const lang = useLanguageStore(s => s.lang)
+  const t    = useT(lang)
 
   useEffect(() => { setMounted(true) }, [])
 
@@ -50,7 +54,7 @@ export default function ReviewModal({ movieId, movieTitle, initialRating = 0, on
       onSaved()
       onClose()
     } catch {
-      setError('Failed to save. Try again.')
+      setError(t.review.failed)
     } finally {
       setSaving(false)
     }
@@ -65,7 +69,7 @@ export default function ReviewModal({ movieId, movieTitle, initialRating = 0, on
       <div className="relative z-10 w-full max-w-lg rounded-2xl bg-surface-2 shadow-2xl">
         <div className="flex items-center justify-between border-b border-white/10 px-6 py-4">
           <div>
-            <h2 className="font-outfit text-base font-bold text-white">Review or Log</h2>
+            <h2 className="font-outfit text-base font-bold text-white">{t.review.title}</h2>
             <p className="font-roboto text-xs text-text-muted">{movieTitle}</p>
           </div>
           <button type="button" onClick={onClose} className="rounded-full p-1.5 text-text-muted hover:bg-white/10 hover:text-white">
@@ -103,7 +107,7 @@ export default function ReviewModal({ movieId, movieTitle, initialRating = 0, on
           <textarea
             value={content}
             onChange={e => setContent(e.target.value)}
-            placeholder="Write a review… (optional)"
+            placeholder={t.review.placeholder}
             rows={5}
             className="w-full resize-none rounded-xl border border-white/10 bg-surface px-4 py-3 font-roboto text-sm text-text placeholder-text-muted outline-none focus:border-purple-light"
           />
@@ -112,7 +116,7 @@ export default function ReviewModal({ movieId, movieTitle, initialRating = 0, on
 
           <div className="flex justify-end gap-3">
             <button type="button" onClick={onClose} className="rounded-full border border-white/15 px-5 py-2 font-roboto text-sm text-text hover:bg-white/5">
-              Cancel
+              {t.review.cancel}
             </button>
             <button
               type="button"
@@ -120,7 +124,7 @@ export default function ReviewModal({ movieId, movieTitle, initialRating = 0, on
               disabled={saving}
               className="rounded-full bg-purple px-5 py-2 font-roboto text-sm font-medium text-white hover:bg-purple-deep disabled:opacity-50"
             >
-              {saving ? 'Saving…' : hasReview ? 'Publish review' : 'Log film'}
+              {saving ? t.review.saving : hasReview ? t.review.publish : t.review.log}
             </button>
           </div>
         </div>

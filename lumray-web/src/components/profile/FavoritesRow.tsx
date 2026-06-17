@@ -1,18 +1,24 @@
+'use client'
+
 import Image from 'next/image'
 import Link from 'next/link'
 import { tmdbPoster } from '@/lib/tmdbImage'
+import { useLanguageStore } from '@/store/language.store'
+import { useT } from '@/lib/i18n'
 
 export interface FavoritesRowProps {
   movies: { id: string; title: string; posterPath: string | null }[]
 }
 
 export default function FavoritesRow({ movies }: FavoritesRowProps) {
+  const lang  = useLanguageStore(s => s.lang)
+  const t     = useT(lang)
   const slots = movies.length > 0 ? movies.slice(0, 4) : []
   const placeholders = Math.max(0, 4 - slots.length)
 
   return (
     <section>
-      <h2 className="mb-4 font-outfit text-lg font-semibold text-text">Favorites</h2>
+      <h2 className="mb-4 font-outfit text-lg font-semibold text-text">{t.profile.favorites}</h2>
 
       <div className="flex gap-3 overflow-x-auto pb-1 md:grid md:grid-cols-4 md:overflow-visible">
         {slots.map((movie) => {

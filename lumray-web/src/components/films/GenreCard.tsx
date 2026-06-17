@@ -1,4 +1,5 @@
 import Image from 'next/image'
+import Link from 'next/link'
 
 export interface GenreCardProps {
   name: string
@@ -9,9 +10,14 @@ export interface GenreCardProps {
 
 export default function GenreCard({ name, gradientFrom, gradientTo, posters }: GenreCardProps) {
   const thumbs = posters.slice(0, 3)
+  const href = `/films?tab=by-genre&pills=${encodeURIComponent(name)}`
 
   return (
-    <article className="group relative h-35 w-full cursor-pointer overflow-hidden rounded-xl transition-[filter] duration-300 hover:brightness-110 md:h-40">
+    <Link
+      href={href}
+      aria-label={`Browse ${name} films`}
+      className="group relative block h-35 w-full overflow-hidden rounded-xl transition-[filter] duration-300 hover:brightness-110 md:h-40"
+    >
       <div className="absolute inset-0 flex">
         {thumbs.map((src, i) => (
           <div key={i} className="relative h-full w-1/3 overflow-hidden">
@@ -37,7 +43,7 @@ export default function GenreCard({ name, gradientFrom, gradientTo, posters }: G
       <h3 className="absolute bottom-3 left-3 font-outfit text-xl font-bold text-white drop-shadow-md leading-none md:text-2xl">
         {name}
       </h3>
-    </article>
+    </Link>
   )
 }
 

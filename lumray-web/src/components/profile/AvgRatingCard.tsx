@@ -1,4 +1,8 @@
+'use client'
+
 import { Star } from 'lucide-react'
+import { useLanguageStore } from '@/store/language.store'
+import { useT } from '@/lib/i18n'
 
 export interface AvgRatingCardProps {
   average: number
@@ -37,13 +41,15 @@ export default function AvgRatingCard({
   totalRatings,
   distribution,
 }: AvgRatingCardProps) {
+  const lang     = useLanguageStore(s => s.lang)
+  const t        = useT(lang)
   const maxCount = Math.max(...distribution, 1)
 
   return (
     <section className="rounded-xl bg-surface p-4">
       <div className="mb-3 flex items-center justify-between gap-2">
-        <h3 className="font-outfit text-sm font-semibold text-text">Avg Rating</h3>
-        <span className="font-roboto text-xs text-text-muted">{totalRatings} films</span>
+        <h3 className="font-outfit text-sm font-semibold text-text">{t.profile.avgRating}</h3>
+        <span className="font-roboto text-xs text-text-muted">{totalRatings} {t.profile.filmsCount}</span>
       </div>
 
       <div className="mb-4 flex items-end gap-2">

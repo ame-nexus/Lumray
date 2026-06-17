@@ -54,6 +54,13 @@ export const createDiaryEntry = async (req: AuthRequest, res: Response) => {
             },
         })
 
+        // Logging a film implies it's watched — mark it idempotently (no duplicate entry)
+        await prisma.watched.upsert({
+            where:  { userId_movieId: { userId, movieId } },
+            create: { userId, movieId },
+            update: {},
+        })
+
         return res.status(201).json({ data: entry, error: null, message: 'Diary entry created' })
     } catch (error) {
         return res.status(500).json({ data: null, error: 'Server error', message: String(error) })

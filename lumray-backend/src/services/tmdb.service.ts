@@ -53,6 +53,14 @@ export const tmdbService = {
         const { data } = await tmdb.get(`${BASE_URL()}/movie/${id}/similar?api_key=${API_KEY()}`)
         return data
     },
+    getMovieTranslation: async (id: number, lang: string) => {
+        const { data } = await tmdb.get(`${BASE_URL()}/movie/${id}?api_key=${API_KEY()}&language=${lang}`)
+        return data
+    },
+    getPersonTranslation: async (id: number, lang: string) => {
+        const { data } = await tmdb.get(`${BASE_URL()}/person/${id}?api_key=${API_KEY()}&language=${lang}`)
+        return data
+    },
     image: (path: string, size: 'w200' | 'w300' | 'w500' | 'original' = 'w500') => {
         return `${process.env.TMDB_IMAGE_BASE_URL}/${size}${path}`
     }

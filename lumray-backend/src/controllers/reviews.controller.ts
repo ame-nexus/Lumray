@@ -2,7 +2,37 @@ import { Request, Response } from 'express'
 import { prisma } from '../lib/prisma'
 import { AuthRequest } from '../middleware/auth.middleware'
 
-export const getReviews = async (req: Request, res: Response) => {
+export const getFeaturedReviews = async (_req: Request, res: Response) => {
+    try {
+        const reviews = await prisma.review.findMany({
+            orderBy: { likes: { _count: 'desc' } },
+            take: 6,
+            include: {
+                user: { select: { id: true, username: true, avatar: true } },
+                movie: { select: { tmdbId: true, title: true, posterPath: true } },
+                _count: { select: { likes: true } },
+            },
+        })
+
+        return res.json({
+            data: reviews.map(r => ({
+                id:        r.id,
+                content:   r.content,
+                rating:    r.rating,
+                createdAt: r.createdAt,
+                user:      r.user,
+                movie:     r.movie,
+                likeCount: r._count.likes,
+            })),
+            error: null,
+            message: 'ok',
+        })
+    } catch (error) {
+        return res.status(500).json({ data: null, error: 'Server error', message: String(error) })
+    }
+}
+
+export const getReviews = async (req: AuthRequest, res: Response) => {
     try {
         const { movieId } = req.query
         if (!movieId) return res.status(400).json({ data: null, error: 'Bad request', message: 'movieId is required' })
@@ -12,11 +42,24 @@ export const getReviews = async (req: Request, res: Response) => {
             orderBy: { createdAt: 'desc' },
             include: {
                 user: { select: { id: true, username: true, avatar: true } },
-                _count: { select: { reviewLikes: true, comments: true } },
+                _count: { select: { likes: true, comments: true } },
             },
         })
 
-        return res.json({ data: reviews, error: null, message: 'ok' })
+        let likedSet = new Set<string>()
+        if (req.user?.id) {
+            const likes = await prisma.reviewLike.findMany({
+                where: { userId: req.user.id, reviewId: { in: reviews.map(r => r.id) } },
+                select: { reviewId: true },
+            })
+            likedSet = new Set(likes.map(l => l.reviewId))
+        }
+
+        return res.json({
+            data: reviews.map(r => ({ ...r, isLiked: likedSet.has(r.id) })),
+            error: null,
+            message: 'ok',
+        })
     } catch (error) {
         return res.status(500).json({ data: null, error: 'Server error', message: String(error) })
     }
@@ -110,6 +153,67 @@ export const unlikeReview = async (req: AuthRequest, res: Response) => {
         await prisma.reviewLike.deleteMany({ where: { userId, reviewId } })
 
         return res.json({ data: null, error: null, message: 'Unliked' })
+    } catch (error) {
+        return res.status(500).json({ data: null, error: 'Server error', message: String(error) })
+    }
+}
+
+export const getReviewComments = async (req: Request, res: Response) => {
+    try {
+        const { id: reviewId } = req.params
+
+        const comments = await prisma.comment.findMany({
+            where: { reviewId },
+            orderBy: { createdAt: 'asc' },
+            include: { user: { select: { id: true, username: true, avatar: true } } },
+        })
+
+        return res.json({ data: comments, error: null, message: 'ok' })
+    } catch (error) {
+        return res.status(500).json({ data: null, error: 'Server error', message: String(error) })
+    }
+}
+
+export const addReviewComment = async (req: AuthRequest, res: Response) => {
+    try {
+        const userId = req.user!.id
+        const { id: reviewId } = req.params
+        const { content } = req.body
+
+        if (!content?.trim()) {
+            return res.status(400).json({ data: null, error: 'Bad request', message: 'content is required' })
+        }
+
+        const comment = await prisma.comment.create({
+            data: { userId, reviewId, content: content.trim() },
+            include: { user: { select: { id: true, username: true, avatar: true } } },
+        })
+
+        return res.status(201).json({ data: comment, error: null, message: 'Comment added' })
+    } catch (error) {
+        return res.status(500).json({ data: null, error: 'Server error', message: String(error) })
+    }
+}
+
+export const deleteReviewComment = async (req: AuthRequest, res: Response) => {
+    try {
+        const userId = req.user!.id
+        const { commentId } = req.params
+
+        const comment = await prisma.comment.findUnique({ where: { id: commentId } })
+        if (!comment) return res.status(404).json({ data: null, error: 'Not found', message: 'Comment not found' })
+
+        // Comment author OR review author can delete
+        if (comment.userId !== userId) {
+            const review = await prisma.review.findUnique({ where: { id: comment.reviewId! } })
+            if (review?.userId !== userId) {
+                return res.status(403).json({ data: null, error: 'Forbidden', message: 'Not your comment' })
+            }
+        }
+
+        await prisma.comment.delete({ where: { id: commentId } })
+
+        return res.json({ data: null, error: null, message: 'Comment deleted' })
     } catch (error) {
         return res.status(500).json({ data: null, error: 'Server error', message: String(error) })
     }

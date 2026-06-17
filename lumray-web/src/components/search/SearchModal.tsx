@@ -6,6 +6,8 @@ import { Search, Clock, X, Film, Users, List } from 'lucide-react'
 import Image from 'next/image'
 import Link from 'next/link'
 import api from '@/services/api'
+import { useLanguageStore } from '@/store/language.store'
+import { useT } from '@/lib/i18n'
 
 // ── types ──────────────────────────────────────────────────────
 
@@ -42,13 +44,13 @@ const STORAGE_KEY = 'lumray:recent-searches'
 const MAX_RECENT  = 6
 const IMG         = 'https://image.tmdb.org/t/p'
 
-// Tab config
-const TABS: { key: Tab; label: string; icon: React.ReactNode }[] = [
-    { key: 'all',    label: 'All',        icon: <Search size={13} /> },
-    { key: 'films',  label: 'Films',      icon: <Film   size={13} /> },
-    { key: 'people', label: 'Cast & Crew',icon: <Users  size={13} /> },
-    { key: 'lists',  label: 'Lists',      icon: <List   size={13} /> },
-]
+// Tab icons (labels are injected at render time from translations)
+const TAB_ICONS: Record<Tab, React.ReactNode> = {
+    all:    <Search size={13} />,
+    films:  <Film   size={13} />,
+    people: <Users  size={13} />,
+    lists:  <List   size={13} />,
+}
 
 // Per-tab API params
 const TAB_PARAMS: Record<Tab, { type: string; limit: number }> = {
@@ -205,12 +207,12 @@ function ListsView({ lists, onPick }: { lists: SearchList[]; onPick: (t: string)
     )
 }
 
-function AllView({ results, onPick }: { results: SearchResults; onPick: (t: string) => void }) {
+function AllView({ results, onPick, labels }: { results: SearchResults; onPick: (t: string) => void; labels: { films: string; castCrew: string; lists: string } }) {
     return (
         <div>
             {results.movies.length > 0 && (
                 <>
-                    <SectionLabel icon={<Film size={11} />} label="Films" />
+                    <SectionLabel icon={<Film size={11} />} label={labels.films} />
                     <div className="flex flex-col gap-0.5 px-3">
                         {results.movies.map(m => (
                             <Link
@@ -232,7 +234,7 @@ function AllView({ results, onPick }: { results: SearchResults; onPick: (t: stri
 
             {results.persons.length > 0 && (
                 <>
-                    <SectionLabel icon={<Users size={11} />} label="Cast & Crew" />
+                    <SectionLabel icon={<Users size={11} />} label={labels.castCrew} />
                     <div className="flex flex-col gap-0.5 px-3">
                         {results.persons.map(p => (
                             <Link
@@ -254,7 +256,7 @@ function AllView({ results, onPick }: { results: SearchResults; onPick: (t: stri
 
             {results.lists.length > 0 && (
                 <>
-                    <SectionLabel icon={<List size={11} />} label="Lists" />
+                    <SectionLabel icon={<List size={11} />} label={labels.lists} />
                     <ListsView lists={results.lists} onPick={onPick} />
                 </>
             )}
@@ -265,6 +267,16 @@ function AllView({ results, onPick }: { results: SearchResults; onPick: (t: stri
 // ── main ───────────────────────────────────────────────────────
 
 export default function SearchModal({ onClose }: { onClose: () => void }) {
+    const lang = useLanguageStore(s => s.lang)
+    const t    = useT(lang)
+
+    const TABS = [
+        { key: 'all'    as Tab, label: t.search.all,    icon: TAB_ICONS.all    },
+        { key: 'films'  as Tab, label: t.search.films,  icon: TAB_ICONS.films  },
+        { key: 'people' as Tab, label: t.search.castCrew, icon: TAB_ICONS.people },
+        { key: 'lists'  as Tab, label: t.search.lists,  icon: TAB_ICONS.lists  },
+    ]
+
     const [mounted,  setMounted]  = useState(false)
     const [query,    setQuery]    = useState('')
     const [tab,      setTab]      = useState<Tab>('all')
@@ -411,7 +423,7 @@ export default function SearchModal({ onClose }: { onClose: () => void }) {
                         type="text"
                         value={query}
                         onChange={handleChange}
-                        placeholder="Search films, cast, crew, lists…"
+                        placeholder={t.search.placeholder}
                         className="flex-1 bg-transparent font-roboto text-[15px] text-[#ede9fc] placeholder-[#7a7882] outline-none"
                     />
                     {query && (
@@ -465,7 +477,7 @@ export default function SearchModal({ onClose }: { onClose: () => void }) {
                         <div className="py-2">
                             <div className="flex items-center gap-2 px-5 py-2">
                                 <Clock size={11} className="text-[#7a7882]" />
-                                <span className="font-outfit text-[10px] font-bold uppercase tracking-widest text-[#7a7882]">Recent</span>
+                                <span className="font-outfit text-[10px] font-bold uppercase tracking-widest text-[#7a7882]">{t.search.recent}</span>
                             </div>
                             {recent.map(term => (
                                 <button
@@ -492,7 +504,7 @@ export default function SearchModal({ onClose }: { onClose: () => void }) {
                     {showEmpty && (
                         <div className="flex flex-col items-center gap-2 py-14">
                             <Search size={32} className="text-[#383a47]" />
-                            <p className="font-roboto text-sm text-[#7a7882]">Search films, people and lists</p>
+                            <p className="font-roboto text-sm text-[#7a7882]">{t.search.start}</p>
                         </div>
                     )}
 
@@ -503,7 +515,7 @@ export default function SearchModal({ onClose }: { onClose: () => void }) {
                     {active && !loading && results && !hasAny && (
                         <div className="flex flex-col items-center gap-2 py-14">
                             <p className="font-roboto text-sm text-[#7a7882]">
-                                No results for <span className="text-[#ede9fc]">&ldquo;{query}&rdquo;</span>
+                                {t.search.noResults} <span className="text-[#ede9fc]">&ldquo;{query}&rdquo;</span>
                             </p>
                         </div>
                     )}
@@ -511,7 +523,7 @@ export default function SearchModal({ onClose }: { onClose: () => void }) {
                     {/* Results by tab */}
                     {active && hasAny && (
                         <div className={loading ? 'opacity-50 pointer-events-none transition-opacity' : 'transition-opacity'}>
-                            {tab === 'all'    && <AllView    results={results!} onPick={handleResultClick} />}
+                            {tab === 'all'    && <AllView    results={results!} onPick={handleResultClick} labels={{ films: t.search.films, castCrew: t.search.castCrew, lists: t.search.lists }} />}
                             {tab === 'films'  && <FilmsGrid  movies={results!.movies}  onPick={handleResultClick} />}
                             {tab === 'people' && <PeopleGrid persons={results!.persons} onPick={handleResultClick} />}
                             {tab === 'lists'  && <ListsView  lists={results!.lists}    onPick={handleResultClick} />}
@@ -522,10 +534,10 @@ export default function SearchModal({ onClose }: { onClose: () => void }) {
                 {/* ── Footer ── */}
                 <div className="border-t border-white/8 px-5 py-2.5 flex items-center gap-5">
                     <span className="font-roboto text-[11px] text-[#7a7882]">
-                        <kbd className="mr-1 rounded bg-white/10 px-1.5 py-0.5 font-mono text-[10px]">↵</kbd>open
+                        <kbd className="mr-1 rounded bg-white/10 px-1.5 py-0.5 font-mono text-[10px]">↵</kbd>{t.search.open}
                     </span>
                     <span className="font-roboto text-[11px] text-[#7a7882]">
-                        <kbd className="mr-1 rounded bg-white/10 px-1.5 py-0.5 font-mono text-[10px]">Esc</kbd>close
+                        <kbd className="mr-1 rounded bg-white/10 px-1.5 py-0.5 font-mono text-[10px]">Esc</kbd>{t.search.close}
                     </span>
                     <span className="ml-auto font-roboto text-[11px] text-[#7a7882]">lumray search</span>
                 </div>

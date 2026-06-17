@@ -8,10 +8,12 @@ import DiaryPagination from '@/components/profile/DiaryPagination'
 import ProfileTwoColumn from '@/components/profile/ProfileTwoColumn'
 import type { DiaryEntryData } from '@/components/profile/DiaryEntryRow'
 import type { DiaryStatsCardProps } from '@/components/profile/DiaryStatsCard'
+import { useAuthStore } from '@/store/auth.store'
 
 interface DiaryTabContentProps {
   entries: DiaryEntryData[]
   stats: DiaryStatsCardProps
+  username: string
 }
 
 const PAGE_SIZE = 10
@@ -38,10 +40,17 @@ function groupByMonth(entries: DiaryEntryData[]): { month: string; entries: Diar
   }))
 }
 
-export default function DiaryTabContent({ entries, stats }: DiaryTabContentProps) {
+export default function DiaryTabContent({ entries: initialEntries, stats, username }: DiaryTabContentProps) {
+  const currentUser = useAuthStore(s => s.user)
+  const isOwner = currentUser?.username === username
+
+  const [entries, setEntries] = useState<DiaryEntryData[]>(initialEntries)
   const [search, setSearch] = useState('')
   const [view, setView] = useState<'list' | 'grid'>('list')
   const [page, setPage] = useState(1)
+
+  const handleDelete = (id: string) => setEntries(prev => prev.filter(e => e.id !== id))
+  const handleEdit = (updated: DiaryEntryData) => setEntries(prev => prev.map(e => e.id === updated.id ? updated : e))
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
@@ -76,6 +85,9 @@ export default function DiaryTabContent({ entries, stats }: DiaryTabContentProps
                 month={group.month}
                 entries={group.entries}
                 view={view}
+                isOwner={isOwner}
+                onDelete={handleDelete}
+                onEdit={handleEdit}
               />
             ))}
 

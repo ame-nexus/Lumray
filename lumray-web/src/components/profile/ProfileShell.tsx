@@ -6,18 +6,20 @@ import { useAuthStore } from '@/store/auth.store'
 
 interface ProfileShellProps {
   username: string
-  profile: Omit<ProfileHeaderProps, 'isOwnProfile' | 'username'>
+  userId: string
+  profile: Omit<ProfileHeaderProps, 'isOwnProfile' | 'username' | 'userId'>
   children: React.ReactNode
 }
 
-export default function ProfileShell({ username, profile, children }: ProfileShellProps) {
-  const authUser = useAuthStore((s) => s.user)
+export default function ProfileShell({ username, userId, profile, children }: ProfileShellProps) {
+  const authUser = useAuthStore(s => s.user)
   const isOwnProfile = authUser?.username === username
 
   return (
     <>
       <ProfileHeader
         username={username}
+        userId={userId}
         isOwnProfile={isOwnProfile}
         name={profile.name}
         bio={profile.bio}

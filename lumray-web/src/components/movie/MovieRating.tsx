@@ -2,6 +2,8 @@
 
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts'
 import { Star } from 'lucide-react'
+import { useLanguageStore } from '@/store/language.store'
+import { useT } from '@/lib/i18n'
 
 export interface MovieRatingProps {
   average: number
@@ -28,7 +30,7 @@ function generateDistribution(avg: number): { stars: number; pct: number }[] {
   }))
 }
 
-function GaugeChart({ value, max = 5 }: { value: number; max?: number }) {
+function GaugeChart({ value, max = 5, outOf5Label }: { value: number; max?: number; outOf5Label: string }) {
   const pct = Math.min(value / max, 1)
   const filled = pct * 100
   const empty = 100 - filled
@@ -57,12 +59,12 @@ function GaugeChart({ value, max = 5 }: { value: number; max?: number }) {
         </PieChart>
       </ResponsiveContainer>
 
-      {/* Centered label inside arc */}
+      {/* Centered label inside arc — label injected from parent via context */}
       <div className="absolute inset-x-0 bottom-0 flex flex-col items-center">
         <span className="font-outfit text-4xl font-bold leading-none text-white">
           {value.toFixed(1)}
         </span>
-        <span className="font-roboto text-[11px] text-text-muted">out of 5</span>
+        <span className="font-roboto text-[11px] text-text-muted">{outOf5Label}</span>
       </div>
     </div>
   )
@@ -94,6 +96,8 @@ function StarRow({ stars, pct }: { stars: number; pct: number }) {
 }
 
 export default function MovieRating({ average, totalCount, distribution }: MovieRatingProps) {
+  const lang = useLanguageStore(s => s.lang)
+  const t    = useT(lang)
   const rows =
     distribution.length > 0
       ? [...distribution]
@@ -108,14 +112,14 @@ export default function MovieRating({ average, totalCount, distribution }: Movie
     <section className="rounded-xl bg-surface p-5">
       {/* Header */}
       <div className="mb-4 flex items-center justify-between">
-        <h3 className="font-outfit text-sm font-semibold text-text">Ratings</h3>
+        <h3 className="font-outfit text-sm font-semibold text-text">{t.movie.totalRatings}</h3>
         <span className="font-roboto text-xs text-text-muted">
-          {formatCount(totalCount)} ratings
+          {formatCount(totalCount)} {t.movie.ratings}
         </span>
       </div>
 
       {/* Gauge */}
-      <GaugeChart value={average} />
+      <GaugeChart value={average} outOf5Label={t.movie.outOf5Label} />
 
       {/* Stars label */}
       <div className="mb-6 flex justify-center gap-1">

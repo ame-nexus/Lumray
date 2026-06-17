@@ -6,6 +6,8 @@ import Image from 'next/image'
 import { Heart, MessageCircle } from 'lucide-react'
 import ReviewCard, { type ReviewCardProps } from '@/components/movie/ReviewCard'
 import api from '@/services/api'
+import { useLanguageStore } from '@/store/language.store'
+import { useT } from '@/lib/i18n'
 
 export interface MovieCommunityProps {
   movieId: string
@@ -19,8 +21,9 @@ interface ApiReview {
   content: string
   rating: number | null
   createdAt: string
-  user: { username: string; avatar: string | null }
-  _count: { reviewLikes: number; comments: number }
+  isLiked: boolean
+  user: { id: string; username: string; avatar: string | null }
+  _count: { likes: number; comments: number }
 }
 
 interface ApiPost {
@@ -58,6 +61,8 @@ function Avatar({ username, avatar }: { username: string; avatar: string | null 
 }
 
 export default function MovieCommunity({ movieId }: MovieCommunityProps) {
+  const lang = useLanguageStore(s => s.lang)
+  const t    = useT(lang)
   const [tab,          setTab]          = useState<Tab>('reviews')
   const [reviews,      setReviews]      = useState<ReviewCardProps[]>([])
   const [posts,        setPosts]        = useState<ApiPost[]>([])
@@ -74,12 +79,14 @@ export default function MovieCommunity({ movieId }: MovieCommunityProps) {
       .then(res => {
         const raw: ApiReview[] = res.data.data ?? []
         setReviews(raw.map(r => ({
-          user:         { username: r.user.username, avatar: r.user.avatar },
-          rating:       r.rating ?? undefined,
+          id:           r.id,
+          user:         { id: r.user.id, username: r.user.username, avatar: r.user.avatar },
+          rating:       r.rating,
           content:      r.content,
-          likeCount:    r._count.reviewLikes,
+          likeCount:    r._count.likes,
           commentCount: r._count.comments,
           createdAt:    new Date(r.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
+          isLiked:      r.isLiked,
         })))
       })
       .catch(() => {})
@@ -131,23 +138,27 @@ export default function MovieCommunity({ movieId }: MovieCommunityProps) {
   return (
     <section>
       <div className="mb-4 flex items-center justify-between gap-4">
-        <h2 className="font-outfit text-xl font-bold text-text">Community</h2>
+        <h2 className="font-outfit text-xl font-bold text-text">{t.movie.community}</h2>
         <Link href={`/films/${movieId}/reviews`} className="font-roboto text-sm text-purple-light underline">
-          all reviews →
+          {t.movie.allReviews}
         </Link>
       </div>
 
       <div className="mb-4 flex gap-6 border-b border-text/10">
-        {(['reviews', 'posts', 'lists'] as const).map(key => (
+        {([
+          { key: 'reviews', label: t.movie.reviews },
+          { key: 'posts',   label: t.movie.posts   },
+          { key: 'lists',   label: t.movie.lists   },
+        ] as const).map(({ key, label }) => (
           <button
             key={key}
             type="button"
             onClick={() => setTab(key)}
-            className={`pb-2 font-outfit text-sm font-medium capitalize transition-colors ${
+            className={`pb-2 font-outfit text-sm font-medium transition-colors ${
               tab === key ? 'border-b-2 border-purple-light text-text' : 'text-text-muted hover:text-text-dim'
             }`}
           >
-            {key}
+            {label}
           </button>
         ))}
       </div>
@@ -160,12 +171,12 @@ export default function MovieCommunity({ movieId }: MovieCommunityProps) {
           </div>
         ) : reviews.length === 0 ? (
           <p className="py-6 text-center font-roboto text-sm text-text-muted">
-            No reviews yet. Be the first to write one.
+            {t.movie.noReviews}
           </p>
         ) : (
           <div className="space-y-4">
-            {reviews.slice(0, 3).map((review, i) => (
-              <ReviewCard key={`${review.user.username}-${i}`} {...review} />
+            {reviews.slice(0, 3).map((review) => (
+              <ReviewCard key={review.id} {...review} onDeleted={fetchReviews} />
             ))}
           </div>
         )
@@ -179,7 +190,7 @@ export default function MovieCommunity({ movieId }: MovieCommunityProps) {
           </div>
         ) : posts.length === 0 ? (
           <p className="py-6 text-center font-roboto text-sm text-text-muted">
-            No posts about this film yet.
+            {t.movie.noPosts}
           </p>
         ) : (
           <div className="space-y-4">
@@ -196,9 +207,9 @@ export default function MovieCommunity({ movieId }: MovieCommunityProps) {
                 </div>
                 <p className="mt-3 font-roboto text-sm leading-relaxed text-text">{post.content}</p>
                 <div className="mt-4 flex items-center gap-3 font-roboto text-xs text-text-muted">
-                  <span className="inline-flex items-center gap-1"><Heart size={12} />{post._count.likes} likes</span>
+                  <span className="inline-flex items-center gap-1"><Heart size={12} />{post._count.likes} {t.movie.likes}</span>
                   <span aria-hidden>·</span>
-                  <span className="inline-flex items-center gap-1"><MessageCircle size={12} />{post._count.comments} comments</span>
+                  <span className="inline-flex items-center gap-1"><MessageCircle size={12} />{post._count.comments} {t.movie.comments}</span>
                 </div>
               </article>
             ))}
@@ -214,7 +225,7 @@ export default function MovieCommunity({ movieId }: MovieCommunityProps) {
           </div>
         ) : lists.length === 0 ? (
           <p className="py-6 text-center font-roboto text-sm text-text-muted">
-            No public lists contain this film yet.
+            {t.movie.noLists}
           </p>
         ) : (
           <div className="space-y-3">
@@ -239,7 +250,7 @@ export default function MovieCommunity({ movieId }: MovieCommunityProps) {
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-outfit text-sm font-semibold text-text">{list.name}</p>
                   <p className="font-roboto text-xs text-text-muted">
-                    {list._count.items} films · by <span className="text-purple-light">{list.user.username}</span>
+                    {list._count.items} {t.movie.films} · {t.movie.by} <span className="text-purple-light">{list.user.username}</span>
                   </p>
                 </div>
               </Link>

@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client'
 import { prisma } from '../lib/prisma'
 import { tmdbService } from '../services/tmdb.service'
 import { itunesService } from '../services/itunes.service'
+import { AuthRequest } from '../middleware/auth.middleware'
 
 export const getTopRated = async (_req: Request, res: Response) => {
     try {
@@ -17,8 +18,26 @@ export const getTopRated = async (_req: Request, res: Response) => {
 export const getByGenre = async (req: Request, res: Response) => {
     try {
         const genreId = parseInt(req.params.genreId as string)
-        const movie = await tmdbService.getByGenre(genreId)
-        return res.json({ data: movie.results, error: null, message: 'ok' })
+        if (isNaN(genreId)) return res.status(400).json({ data: null, error: 'Invalid id', message: 'genreId must be a number' })
+
+        const page  = Math.max(1, parseInt(req.query.page as string) || 1)
+        const limit = Math.min(60, Math.max(1, parseInt(req.query.limit as string) || 20))
+
+        const genre = await prisma.genre.findUnique({ where: { tmdbId: genreId } })
+        if (!genre) return res.json({ data: [], error: null, message: 'ok' })
+
+        const items = await prisma.movieGenre.findMany({
+            where: { genreId: genre.id },
+            include: {
+                movie: {
+                    select: { tmdbId: true, title: true, posterPath: true, backdropPath: true, releaseDate: true, voteAverage: true, voteCount: true }
+                }
+            },
+            take: limit,
+            skip: (page - 1) * limit,
+        })
+
+        return res.json({ data: items.map(i => i.movie), error: null, message: 'ok' })
     } catch (error) {
         return res.status(500).json({ data: null, error: 'Server error', message: String(error) })
     }
@@ -273,10 +292,10 @@ export const browseMovies = async (req: Request, res: Response) => {
 
         if (runtimes.length) {
             const RUNTIME_RANGES: Record<string, Prisma.MovieWhereInput> = {
-                'Under 90 min':  { runtime: { lte: 90 } },
-                '90–120 min':    { runtime: { gte: 90,  lte: 120 } },
-                '120–180 min':   { runtime: { gte: 120, lte: 180 } },
-                'Over 180 min':  { runtime: { gte: 180 } },
+                'under90':    { runtime: { lte: 90 } },
+                '90to120':    { runtime: { gte: 90,  lte: 120 } },
+                '120to180':   { runtime: { gte: 120, lte: 180 } },
+                'over180':    { runtime: { gte: 180 } },
             }
             const runtimeConditions = runtimes
                 .map(r => RUNTIME_RANGES[r])
@@ -352,6 +371,192 @@ export const browseMovies = async (req: Request, res: Response) => {
             error: null,
             message: 'ok'
         })
+    } catch (error) {
+        return res.status(500).json({ data: null, error: 'Server error', message: String(error) })
+    }
+}
+
+export const getMovieTranslation = async (req: Request, res: Response) => {
+    try {
+        const tmdbId = parseInt(req.params.id as string)
+        if (isNaN(tmdbId)) return res.status(400).json({ data: null, error: 'Invalid id', message: 'id must be a number' })
+        const lang = (req.query.lang as string) || 'en'
+        const allowedLangs = ['fr', 'ar', 'es', 'de', 'it', 'ja', 'ko', 'pt', 'zh']
+        if (!allowedLangs.includes(lang)) return res.status(400).json({ data: null, error: 'Invalid lang', message: 'Unsupported language' })
+        const tmdb = await tmdbService.getMovieTranslation(tmdbId, lang)
+        return res.json({
+            data: { overview: tmdb.overview ?? null, tagline: tmdb.tagline ?? null },
+            error: null,
+            message: 'ok',
+        })
+    } catch (error) {
+        return res.status(500).json({ data: null, error: 'Server error', message: String(error) })
+    }
+}
+
+export const getGenrePreviews = async (_req: Request, res: Response) => {
+    try {
+        const genres = await prisma.genre.findMany({
+            orderBy: { movies: { _count: 'desc' } },
+            take: 8,
+            include: {
+                movies: {
+                    where: {
+                        movie: { voteCount: { gte: 1000 }, posterPath: { not: null } }
+                    },
+                    orderBy: { movie: { voteAverage: 'desc' } },
+                    take: 3,
+                    include: { movie: { select: { posterPath: true } } },
+                },
+            },
+        })
+
+        return res.json({
+            data: genres.map(g => ({
+                tmdbId: g.tmdbId,
+                name: g.name,
+                posters: g.movies
+                    .map(m => m.movie.posterPath)
+                    .filter((p): p is string => p !== null),
+            })),
+            error: null,
+            message: 'ok',
+        })
+    } catch (error) {
+        return res.status(500).json({ data: null, error: 'Server error', message: String(error) })
+    }
+}
+
+export const getPopularWithFriends = async (req: AuthRequest, res: Response) => {
+    try {
+        const userId = req.user!.id
+
+        const follows = await prisma.follow.findMany({
+            where: { followerId: userId },
+            select: { followingId: true },
+        })
+        const friendIds = follows.map(f => f.followingId)
+        if (friendIds.length === 0) return res.json({ data: [], error: null, message: 'ok' })
+
+        const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+        const entries = await prisma.diaryEntry.findMany({
+            where: { userId: { in: friendIds }, watchedAt: { gte: since } },
+            include: {
+                movie: {
+                    select: { tmdbId: true, title: true, posterPath: true, backdropPath: true, releaseDate: true },
+                },
+            },
+        })
+
+        const counts = new Map<string, { movie: { tmdbId: number; title: string; posterPath: string | null; backdropPath: string | null; releaseDate: string | null }; count: number }>()
+        for (const e of entries) {
+            const existing = counts.get(e.movieId)
+            if (existing) existing.count++
+            else counts.set(e.movieId, { movie: e.movie, count: 1 })
+        }
+
+        const sorted = [...counts.values()]
+            .sort((a, b) => b.count - a.count)
+            .slice(0, 20)
+            .map(s => s.movie)
+
+        return res.json({ data: sorted, error: null, message: 'ok' })
+    } catch (error) {
+        return res.status(500).json({ data: null, error: 'Server error', message: String(error) })
+    }
+}
+
+export const getRecommended = async (req: AuthRequest, res: Response) => {
+    try {
+        const userId = req.user!.id
+
+        // 1. Gather all movies the user has any history with
+        const [ratings, diary, reviews] = await Promise.all([
+            prisma.rating.findMany({ where: { userId }, select: { movieId: true, score: true } }),
+            prisma.diaryEntry.findMany({ where: { userId }, select: { movieId: true }, distinct: ['movieId'] }),
+            prisma.review.findMany({ where: { userId }, select: { movieId: true } }),
+        ])
+
+        const watchedIds = [...new Set([
+            ...ratings.map(r => r.movieId),
+            ...diary.map(d => d.movieId),
+            ...reviews.map(r => r.movieId),
+        ])]
+
+        // No history → return empty so frontend hides the section
+        if (watchedIds.length === 0) {
+            return res.json({ data: [], error: null, message: 'ok' })
+        }
+
+        // 2. Extract features from well-liked movies (rated ≥3.5) or all history as fallback
+        const preferredIds = ratings.filter(r => r.score >= 3.5).map(r => r.movieId)
+        const sourceIds = preferredIds.length > 0 ? preferredIds : watchedIds
+
+        const likedMovies = await prisma.movie.findMany({
+            where: { id: { in: sourceIds } },
+            select: {
+                language: true,
+                genres: { select: { genreId: true } },
+                crew:    { where: { job: 'Director' }, select: { personId: true } },
+                cast:    { orderBy: { order: 'asc' }, take: 5, select: { personId: true } },
+            },
+        })
+
+        const genreIds    = [...new Set(likedMovies.flatMap(m => m.genres.map(g => g.genreId)))]
+        const directorIds = [...new Set(likedMovies.flatMap(m => m.crew.map(c => c.personId)))]
+        const actorIds    = [...new Set(likedMovies.flatMap(m => m.cast.map(c => c.personId)))]
+        const languages   = [...new Set(likedMovies.map(m => m.language).filter((l): l is string => l !== null))]
+
+        // 3. Find candidates that match at least one feature and haven't been watched
+        const orClauses: object[] = []
+        if (genreIds.length)    orClauses.push({ genres: { some: { genreId: { in: genreIds } } } })
+        if (directorIds.length) orClauses.push({ crew: { some: { personId: { in: directorIds }, job: 'Director' } } })
+        if (actorIds.length)    orClauses.push({ cast: { some: { personId: { in: actorIds } } } })
+        if (languages.length)   orClauses.push({ language: { in: languages } })
+
+        const candidates = await prisma.movie.findMany({
+            where: {
+                id: { notIn: watchedIds },
+                voteCount: { gte: 200 },
+                OR: orClauses,
+            },
+            select: {
+                tmdbId: true, title: true, posterPath: true,
+                backdropPath: true, releaseDate: true,
+                voteAverage: true, voteCount: true,
+                language: true,
+                genres: { select: { genreId: true } },
+                crew:   { where: { job: 'Director' }, select: { personId: true } },
+                cast:   { orderBy: { order: 'asc' }, take: 5, select: { personId: true } },
+            },
+            take: 150,
+        })
+
+        // 4. Score by feature overlap
+        const genreSet    = new Set(genreIds)
+        const directorSet = new Set(directorIds)
+        const actorSet    = new Set(actorIds)
+        const langSet     = new Set(languages)
+
+        const top = candidates
+            .map(m => {
+                let score = 0
+                score += m.genres.filter(g => genreSet.has(g.genreId)).length * 3
+                if (m.crew.some(c => directorSet.has(c.personId))) score += 10
+                score += m.cast.filter(c => actorSet.has(c.personId)).length * 2
+                if (m.language && langSet.has(m.language)) score += 2
+                score += m.voteAverage  // quality tiebreak
+                return { m, score }
+            })
+            .sort((a, b) => b.score - a.score)
+            .slice(0, 20)
+            .map(({ m }) => ({
+                tmdbId: m.tmdbId, title: m.title, posterPath: m.posterPath,
+                backdropPath: m.backdropPath, releaseDate: m.releaseDate,
+                voteAverage: m.voteAverage, voteCount: m.voteCount,
+            }))
+
+        return res.json({ data: top, error: null, message: 'ok' })
     } catch (error) {
         return res.status(500).json({ data: null, error: 'Server error', message: String(error) })
     }

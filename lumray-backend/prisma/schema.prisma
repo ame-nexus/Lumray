@@ -45,6 +45,7 @@ model User {
   userBadges    UserBadge[]
   watchlist     Watchlist[]
   movieLikes    MovieLike[]
+  watched       Watched[]
 }
 
 model PasswordReset {
@@ -102,6 +103,7 @@ model Movie {
   posts        Post[]
   watchlist    Watchlist[]
   movieLikes   MovieLike[]
+  watched      Watched[]
 }
 
 model Genre {
@@ -317,12 +319,17 @@ model ConversationParticipant {
 }
 
 model Message {
-  id             String   @id @default(cuid())
-  conversationId String
-  senderId       String
-  content        String   @db.Text
-  read           Boolean  @default(false)
-  createdAt      DateTime @default(now())
+  id               String   @id @default(cuid())
+  conversationId   String
+  senderId         String
+  content          String   @db.Text
+  read             Boolean  @default(false)
+  attachmentUrl    String?
+  attachmentType   String?
+  movieTmdbId      Int?
+  movieTitle       String?
+  moviePosterPath  String?
+  createdAt        DateTime @default(now())
 
   conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   sender       User         @relation(fields: [senderId], references: [id], onDelete: Cascade)
@@ -359,4 +366,16 @@ model MovieLike {
   movie Movie @relation(fields: [movieId], references: [id], onDelete: Cascade)
 
   @@id([userId, movieId])
+}
+
+model Watched {
+  id        String   @id @default(cuid())
+  userId    String
+  movieId   String
+  createdAt DateTime @default(now())
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  movie Movie @relation(fields: [movieId], references: [id])
+
+  @@unique([userId, movieId])
 }
