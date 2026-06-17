@@ -1,3 +1,8 @@
+'use client'
+
+import { useLanguageStore } from '@/store/language.store'
+import { useT } from '@/lib/i18n'
+
 export interface Badge {
   id: string
   label: string
@@ -10,9 +15,11 @@ export interface TasteBadgesCardProps {
 }
 
 export default function TasteBadgesCard({ badges }: TasteBadgesCardProps) {
+  const lang = useLanguageStore(s => s.lang)
+  const t    = useT(lang)
   return (
     <section className="rounded-xl bg-surface p-4">
-      <h3 className="mb-4 font-outfit text-sm font-semibold text-text">Taste badges</h3>
+      <h3 className="mb-4 font-outfit text-sm font-semibold text-text">{t.profile.tasteBadges}</h3>
 
       <div className="grid grid-cols-2 gap-2">
         {badges.slice(0, 4).map((badge) => (

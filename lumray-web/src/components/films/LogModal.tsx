@@ -3,8 +3,9 @@
 import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import Image from 'next/image'
-import { X, Eye, Heart, Bookmark, Star, StarHalf, PenLine, ListPlus } from 'lucide-react'
+import { X, Eye, Heart, Bookmark, Star, StarHalf, PenLine, Loader2, Check } from 'lucide-react'
 import { useAuthStore } from '@/store/auth.store'
+import { useFilmStatusStore } from '@/store/filmStatus.store'
 import { useRouter } from 'next/navigation'
 import api from '@/services/api'
 
@@ -27,15 +28,11 @@ function StarPicker({ value, onChange }: { value: number; onChange: (v: number) 
   return (
     <div className="flex items-center gap-1.5">
       {Array.from({ length: 5 }, (_, i) => {
-        const star = i + 1
+        const star   = i + 1
         const isFull = value >= star
         const isHalf = !isFull && value >= star - 0.5
         return (
-          <button
-            key={star}
-            type="button"
-            onClick={() => onChange(nextRating(value, star))}
-          >
+          <button key={star} type="button" onClick={() => onChange(nextRating(value, star))}>
             {isFull ? (
               <Star size={24} className="fill-purple-light text-purple-light" />
             ) : isHalf ? (
@@ -50,15 +47,19 @@ function StarPicker({ value, onChange }: { value: number; onChange: (v: number) 
   )
 }
 
-export default function LogModal({ tmdbId, dbId, title, year, posterPath, onClose }: LogModalProps) {
-  const user     = useAuthStore(s => s.user)
-  const router   = useRouter()
+export default function LogModal({ tmdbId: _tmdbId, dbId, title, year, posterPath, onClose }: LogModalProps) {
+  const user        = useAuthStore(s => s.user)
+  const router      = useRouter()
+  const storeStatus = useFilmStatusStore(s => s.statuses[dbId])
+  const setStatus   = useFilmStatusStore(s => s.set)
 
-  const [watched,     setWatched]     = useState(false)
-  const [favourite,   setFavourite]   = useState(false)
-  const [watchlisted, setWatchlisted] = useState(false)
-  const [rating,      setRating]      = useState(0)
+  // Pre-fill from global store (populated if user already opened the film detail page)
+  const [watched,     setWatched]     = useState(storeStatus?.watched    ?? false)
+  const [favourite,   setFavourite]   = useState(storeStatus?.favourite  ?? false)
+  const [watchlisted, setWatchlisted] = useState(storeStatus?.watchlisted ?? false)
+  const [rating,      setRating]      = useState(storeStatus?.rating     ?? 0)
   const [saving,      setSaving]      = useState(false)
+  const [saved,       setSaved]       = useState(false)
   const [mounted,     setMounted]     = useState(false)
 
   useEffect(() => { setMounted(true) }, [])
@@ -69,28 +70,86 @@ export default function LogModal({ tmdbId, dbId, title, year, posterPath, onClos
     return () => window.removeEventListener('keydown', handler)
   }, [onClose])
 
-  function requireAuth() {
+  function requireAuth(): boolean {
     if (!user) { router.push('/login'); return true }
     return false
   }
 
-  async function handleWatchlist() {
+  async function toggleWatched() {
     if (requireAuth()) return
-    setWatchlisted(v => !v)
+    const next = !watched
+    setWatched(next)
+    setStatus(dbId, { watched: next, ...(next ? {} : { rating: 0 }) })
+    if (!next && rating > 0) {
+      setRating(0)
+      api.delete(`/api/ratings/${dbId}`).catch(() => {})
+    }
+    api.post(`/api/film-status/${dbId}/watched`)
+      .then(res => {
+        const v = res.data.data.watched ?? next
+        setWatched(v)
+        setStatus(dbId, { watched: v })
+      })
+      .catch(() => { setWatched(!next); setStatus(dbId, { watched: !next }) })
+  }
+
+  async function toggleFavourite() {
+    if (requireAuth()) return
+    const next = !favourite
+    setFavourite(next)
+    setStatus(dbId, { favourite: next })
+    api.post(`/api/film-status/${dbId}/favourite`)
+      .then(res => {
+        const v = res.data.data.favourite ?? next
+        setFavourite(v)
+        setStatus(dbId, { favourite: v })
+      })
+      .catch(() => { setFavourite(!next); setStatus(dbId, { favourite: !next }) })
+  }
+
+  async function toggleWatchlist() {
+    if (requireAuth()) return
+    const next = !watchlisted
+    setWatchlisted(next)
+    setStatus(dbId, { watchlisted: next })
+    api.post(`/api/film-status/${dbId}/watchlist`)
+      .then(res => {
+        const v = res.data.data.watchlisted ?? next
+        setWatchlisted(v)
+        setStatus(dbId, { watchlisted: v })
+      })
+      .catch(() => { setWatchlisted(!next); setStatus(dbId, { watchlisted: !next }) })
+  }
+
+  async function handleRatingChange(newRating: number) {
+    setRating(newRating)
+    setStatus(dbId, { rating: newRating })
+    if (newRating > 0) {
+      api.post('/api/ratings', { movieId: dbId, score: newRating }).catch(() => {})
+      if (!watched) {
+        setWatched(true)
+        setStatus(dbId, { watched: true })
+        api.post(`/api/film-status/${dbId}/watched`).catch(() => {})
+      }
+    } else {
+      api.delete(`/api/ratings/${dbId}`).catch(() => {})
+    }
   }
 
   async function handleLog() {
     if (requireAuth()) return
-    if (saving) return
+    if (saving || saved) return
     setSaving(true)
     try {
       await api.post('/api/diary', { movieId: dbId, rating: rating || null, isRewatch: false })
-      if (rating > 0) {
-        await api.post('/api/ratings', { movieId: dbId, score: rating })
-      }
+      // The diary endpoint marks the film watched server-side (idempotent) — no extra call,
+      // so logging creates exactly one diary entry.
       setWatched(true)
+      setStatus(dbId, { watched: true, ...(rating > 0 ? { rating } : {}) })
+      setSaved(true)
+      setTimeout(onClose, 700)
     } catch {
-      // silent fail — user can retry
+      // silent — user can retry
     } finally {
       setSaving(false)
     }
@@ -135,13 +194,13 @@ export default function LogModal({ tmdbId, dbId, title, year, posterPath, onClos
 
           <div className="flex items-center justify-around">
             {[
-              { label: 'Watched',   icon: Eye,      active: watched,     onClick: () => { if (!requireAuth()) setWatched(v => !v) } },
-              { label: 'Favorite',  icon: Heart,    active: favourite,   onClick: () => { if (!requireAuth()) setFavourite(v => !v) } },
-              { label: 'WatchList', icon: Bookmark, active: watchlisted, onClick: handleWatchlist },
+              { label: 'Watched',   icon: Eye,      active: watched,     onClick: toggleWatched   },
+              { label: 'Favourite', icon: Heart,    active: favourite,   onClick: toggleFavourite },
+              { label: 'Watchlist', icon: Bookmark, active: watchlisted, onClick: toggleWatchlist },
             ].map(({ label, icon: Icon, active, onClick }) => (
               <button key={label} type="button" onClick={onClick} className="flex flex-col items-center gap-2">
                 <span className={`flex h-12 w-12 items-center justify-center rounded-full transition-colors ${
-                  active ? 'bg-purple text-white' : 'bg-surface-2 text-text hover:bg-surface'
+                  active ? 'bg-purple text-white' : 'bg-surface text-text hover:bg-surface-2'
                 }`}>
                   <Icon size={20} />
                 </span>
@@ -154,28 +213,18 @@ export default function LogModal({ tmdbId, dbId, title, year, posterPath, onClos
             <p className="mb-2 font-roboto text-xs text-text-muted">
               {rating > 0 ? `Rated ${rating} / 5` : 'Rate this film'}
             </p>
-            <StarPicker value={rating} onChange={setRating} />
+            <StarPicker value={rating} onChange={handleRatingChange} />
           </div>
 
-          <div className="border-t border-white/10" />
-
-          <div className="space-y-0 divide-y divide-white/10">
+          <div className="border-t border-white/10 pt-4">
             <button
               type="button"
               onClick={handleLog}
-              disabled={saving}
-              className="flex w-full items-center gap-3 py-2.5 font-roboto text-sm text-text transition-colors hover:text-purple-light disabled:opacity-50"
+              disabled={saving || saved}
+              className="flex w-full items-center justify-center gap-2 rounded-lg bg-purple py-2.5 font-roboto text-sm font-semibold text-white transition-colors hover:bg-purple-deep disabled:opacity-60"
             >
-              <PenLine size={15} className="opacity-60" />
-              {saving ? 'Saving…' : 'Review or Log'}
-            </button>
-            <button
-              type="button"
-              onClick={() => { if (!requireAuth()) { /* TODO: open lists modal */ } }}
-              className="flex w-full items-center gap-3 py-2.5 font-roboto text-sm text-text transition-colors hover:text-purple-light"
-            >
-              <ListPlus size={15} className="opacity-60" />
-              Add to lists
+              {saving ? <Loader2 size={15} className="animate-spin" /> : saved ? <Check size={15} /> : <PenLine size={15} />}
+              {saving ? 'Logging…' : saved ? 'Logged!' : 'Log'}
             </button>
           </div>
 

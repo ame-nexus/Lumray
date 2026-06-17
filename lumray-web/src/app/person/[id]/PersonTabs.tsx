@@ -2,6 +2,8 @@
 
 import { useState } from 'react'
 import MoviePoster from '@/components/films/MoviePoster'
+import { useLanguageStore } from '@/store/language.store'
+import { useT } from '@/lib/i18n'
 
 interface RoleMovie {
   tmdbId: number
@@ -18,16 +20,18 @@ interface RoleGroup {
 
 export default function PersonTabs({ roles }: { roles: RoleGroup[] }) {
   const [activeJob, setActiveJob] = useState(roles[0]?.job ?? '')
+  const lang = useLanguageStore(s => s.lang)
+  const t    = useT(lang)
 
   if (roles.length === 0) {
-    return <p className="font-roboto text-sm text-text-muted">No film credits found.</p>
+    return <p className="font-roboto text-sm text-text-muted">{t.person.noCredits}</p>
   }
 
   const activeRole = roles.find(r => r.job === activeJob)
 
   return (
     <section>
-      <h2 className="mb-4 font-outfit text-lg font-semibold text-text">Filmography</h2>
+      <h2 className="mb-4 font-outfit text-lg font-semibold text-text">{t.person.filmography}</h2>
 
       {/* Tab bar */}
       <div

@@ -7,11 +7,12 @@ import { Heart, Star, ChevronLeft, ChevronRight } from 'lucide-react'
 import { Swiper, SwiperSlide } from 'swiper/react'
 import type { Swiper as SwiperClass } from 'swiper'
 import 'swiper/css'
+import FollowButton from '@/components/ui/FollowButton'
 
 export interface CommunityReviewItem {
   content: string
   rating: number
-  user: { username: string; avatar: string }
+  user: { id: string; username: string; avatar: string }
   movie: { title: string; posterPath: string }
   likeCount: number
 }
@@ -59,9 +60,12 @@ function ReviewCard({ review }: { review: CommunityReviewItem }) {
               <Image src={review.user.avatar} alt={review.user.username} fill className="object-cover" sizes="40px" />
             </div>
             <div className="min-w-0">
-              <p className="font-roboto text-xs text-text-muted md:text-sm truncate">
-                reviewed by <span className="font-semibold text-white">{review.user.username}</span>
-              </p>
+              <div className="flex items-center gap-2 flex-wrap">
+                <p className="font-roboto text-xs text-text-muted md:text-sm truncate">
+                  reviewed by <span className="font-semibold text-white">{review.user.username}</span>
+                </p>
+                <FollowButton userId={review.user.id} size="xs" />
+              </div>
               <StarRow rating={review.rating} />
             </div>
           </div>
@@ -130,21 +134,21 @@ export const COMMUNITY_REVIEW_DUMMY: CommunityReviewItem[] = [
   {
     content: 'A masterpiece of tension and character. Every frame feels deliberate, and the score stays with you long after the credits. I have rewatched it twice this month and still notice new details in the background performances.',
     rating: 5,
-    user: { username: 'cinephile_omar', avatar: 'https://i.pravatar.cc/150?u=omar' },
+    user: { id: 'dummy-1', username: 'cinephile_omar', avatar: 'https://i.pravatar.cc/150?u=omar' },
     movie: { title: 'The Godfather', posterPath: '/3bhkrj58Vtu7enYsRolD1fZdja1.jpg' },
     likeCount: 128,
   },
   {
     content: 'Visually stunning and emotionally devastating in the best way. The third act lost me slightly, but the performances carried it home. Would recommend to anyone who loves slow-burn sci-fi with heart.',
     rating: 4,
-    user: { username: 'filmlover_j', avatar: 'https://i.pravatar.cc/150?u=jane' },
+    user: { id: 'dummy-2', username: 'filmlover_j', avatar: 'https://i.pravatar.cc/150?u=jane' },
     movie: { title: 'Interstellar', posterPath: '/gEU2QniE6E77NI6lCU6MxlNBvIx.jpg' },
     likeCount: 84,
   },
   {
     content: 'Perfect comfort watch with surprising depth. The humor lands every time, and the friendship at the core feels genuine rather than written for plot convenience.',
     rating: 5,
-    user: { username: 'popcorn_sam', avatar: 'https://i.pravatar.cc/150?u=sam' },
+    user: { id: 'dummy-3', username: 'popcorn_sam', avatar: 'https://i.pravatar.cc/150?u=sam' },
     movie: { title: 'Spirited Away', posterPath: '/39wmItIWsg5sZMyWYCLiNmJ7hwM.jpg' },
     likeCount: 56,
   },

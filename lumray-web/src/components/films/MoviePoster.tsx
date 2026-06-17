@@ -3,7 +3,11 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
-import { Bookmark, Eye, Star } from 'lucide-react'
+import { Bookmark, Eye, Plus, Star } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { useAuthStore } from '@/store/auth.store'
+import { useFilmStatusStore } from '@/store/filmStatus.store'
+import api from '@/services/api'
 import LogModal from './LogModal'
 
 export interface MoviePosterProps {
@@ -32,12 +36,54 @@ function formatCount(n: number): string {
 export default function MoviePoster({
   id, dbId, title, year, posterPath, rating, ratingCount, sizes, priority,
 }: MoviePosterProps) {
-  const src = buildSrc(posterPath)
-  const [imgError,     setImgError]     = useState(false)
-  const [modalOpen,    setModalOpen]    = useState(false)
-  const [watchlisted,  setWatchlisted]  = useState(false)
+  const src    = buildSrc(posterPath)
+  const router = useRouter()
+  const user   = useAuthStore(s => s.user)
 
-  const tmdbId = typeof id === 'string' ? parseInt(id) : id
+  // Read watchlist state from global store (pre-loaded by the film detail page)
+  // Falls back to false when not yet fetched — no per-card API call
+  const storeStatus     = useFilmStatusStore(s => dbId ? s.statuses[dbId] : undefined)
+  const setStoreStatus  = useFilmStatusStore(s => s.set)
+
+  const [imgError,  setImgError]  = useState(false)
+  const [modalOpen, setModalOpen] = useState(false)
+
+  const tmdbId     = typeof id === 'string' ? parseInt(id) : id
+  const watchlisted = storeStatus?.watchlisted ?? false
+  const watched     = storeStatus?.watched     ?? false
+
+  async function handleWatchlist(e: React.MouseEvent) {
+    e.preventDefault()
+    e.stopPropagation()
+    if (!user) { router.push('/login'); return }
+    if (!dbId) return
+
+    const next = !watchlisted
+    setStoreStatus(dbId, { watchlisted: next })
+    api.post(`/api/film-status/${dbId}/watchlist`)
+      .then(res => setStoreStatus(dbId, { watchlisted: res.data.data.watchlisted ?? next }))
+      .catch(() => setStoreStatus(dbId, { watchlisted: !next }))
+  }
+
+  async function handleWatched(e: React.MouseEvent) {
+    e.preventDefault()
+    e.stopPropagation()
+    if (!user) { router.push('/login'); return }
+    if (!dbId) return
+
+    const next = !watched
+    setStoreStatus(dbId, { watched: next })
+    api.post(`/api/film-status/${dbId}/watched`)
+      .then(res => setStoreStatus(dbId, { watched: res.data.data.watched ?? next }))
+      .catch(() => setStoreStatus(dbId, { watched: !next }))
+  }
+
+  function openLog(e: React.MouseEvent) {
+    e.preventDefault()
+    e.stopPropagation()
+    if (!user) { router.push('/login'); return }
+    setModalOpen(true)
+  }
 
   return (
     <>
@@ -76,15 +122,11 @@ export default function MoviePoster({
             )}
           </div>
 
-          {/* Middle: Watchlist + Log */}
-          <div className="flex items-center justify-center gap-5">
+          {/* Middle: Watchlist + Watched + Log */}
+          <div className="flex items-center justify-center gap-3">
             <button
               type="button"
-              onClick={(e) => {
-                e.preventDefault()
-                e.stopPropagation()
-                setWatchlisted(v => !v)
-              }}
+              onClick={handleWatchlist}
               aria-label="Add to watchlist"
               className="flex flex-col items-center gap-1 transition-colors hover:text-white"
             >
@@ -98,18 +140,28 @@ export default function MoviePoster({
 
             <button
               type="button"
-              onClick={(e) => {
-                e.preventDefault()
-                e.stopPropagation()
-                setModalOpen(true)
-              }}
-              aria-label="Log film"
-              className="flex flex-col items-center gap-1 text-white/80 transition-colors hover:text-white"
+              onClick={handleWatched}
+              aria-label={watched ? 'Mark as not watched' : 'Mark as watched'}
+              className="flex flex-col items-center gap-1 transition-colors hover:text-white"
             >
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/15 backdrop-blur-sm transition-colors hover:bg-white/25">
-                <Eye size={14} />
+              <div className={`flex h-8 w-8 items-center justify-center rounded-full backdrop-blur-sm transition-colors ${
+                watched ? 'bg-purple text-white' : 'bg-white/15 text-white/80 hover:bg-white/25'
+              }`}>
+                <Eye size={14} className={watched ? 'fill-white' : ''} />
               </div>
-              <span className="font-roboto text-[9px] leading-none">Log</span>
+              <span className="font-roboto text-[9px] leading-none text-white/80">Watched</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={openLog}
+              aria-label="Log film"
+              className="flex flex-col items-center gap-1 transition-colors hover:text-white"
+            >
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/15 text-white/80 backdrop-blur-sm transition-colors hover:bg-white/25">
+                <Plus size={16} />
+              </div>
+              <span className="font-roboto text-[9px] leading-none text-white/80">Log</span>
             </button>
           </div>
 

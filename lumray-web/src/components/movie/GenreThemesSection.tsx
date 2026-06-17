@@ -1,6 +1,8 @@
 'use client'
 
 import { useState } from 'react'
+import { useLanguageStore } from '@/store/language.store'
+import { useT } from '@/lib/i18n'
 
 export interface GenreThemesSectionProps {
   genres: string[]
@@ -23,6 +25,8 @@ export default function GenreThemesSection({
 }: GenreThemesSectionProps) {
   const [tab, setTab] = useState<Tab>('genre')
   const themeList = themes ?? []
+  const lang = useLanguageStore(s => s.lang)
+  const t    = useT(lang)
 
   return (
     <section>
@@ -36,7 +40,7 @@ export default function GenreThemesSection({
               : 'text-text-muted'
           }`}
         >
-          Genre
+          {t.movie.genre}
         </button>
         <button
           type="button"
@@ -47,7 +51,7 @@ export default function GenreThemesSection({
               : 'text-text-muted'
           }`}
         >
-          Themes
+          {t.movie.themes}
         </button>
       </div>
 
@@ -64,7 +68,7 @@ export default function GenreThemesSection({
           ))}
         </div>
       ) : (
-        <p className="font-roboto text-sm text-text-muted">No themes tagged yet.</p>
+        <p className="font-roboto text-sm text-text-muted">{t.movie.noThemes}</p>
       )}
     </section>
   )

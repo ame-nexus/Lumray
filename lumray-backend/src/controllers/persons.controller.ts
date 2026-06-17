@@ -163,3 +163,21 @@ export const getPersonDetail = async (req: Request, res: Response) => {
     return res.status(500).json({ data: null, error: 'Server error', message: String(error) })
   }
 }
+
+export const getPersonTranslation = async (req: Request, res: Response) => {
+  try {
+    const tmdbId = parseInt(req.params.id as string)
+    if (isNaN(tmdbId)) return res.status(400).json({ data: null, error: 'Invalid id', message: 'id must be a number' })
+    const lang = (req.query.lang as string) || 'en'
+    const allowedLangs = ['fr', 'ar', 'es', 'de', 'it', 'ja', 'ko', 'pt', 'zh']
+    if (!allowedLangs.includes(lang)) return res.status(400).json({ data: null, error: 'Invalid lang', message: 'Unsupported language' })
+    const tmdb = await tmdbService.getPersonTranslation(tmdbId, lang)
+    return res.json({
+      data: { biography: (tmdb.biography as string) || null },
+      error: null,
+      message: 'ok',
+    })
+  } catch (error) {
+    return res.status(500).json({ data: null, error: 'Server error', message: String(error) })
+  }
+}

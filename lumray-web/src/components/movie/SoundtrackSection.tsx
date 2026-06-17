@@ -4,6 +4,8 @@ import { useState, useRef, useEffect } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { Play, Pause, Music } from 'lucide-react'
+import { useLanguageStore } from '@/store/language.store'
+import { useT } from '@/lib/i18n'
 
 export interface SoundtrackTrack {
   id: string
@@ -35,6 +37,8 @@ export default function SoundtrackSection({
 }: SoundtrackSectionProps) {
   const [playingId, setPlayingId] = useState<string | null>(null)
   const audioRef = useRef<HTMLAudioElement | null>(null)
+  const lang = useLanguageStore(s => s.lang)
+  const t    = useT(lang)
 
   useEffect(() => {
     return () => {
@@ -68,14 +72,14 @@ export default function SoundtrackSection({
   return (
     <section>
       <div className="mb-4 flex items-center justify-between border-b border-text/10 pb-2">
-        <h2 className="font-outfit text-lg font-semibold text-text">Soundtrack</h2>
+        <h2 className="font-outfit text-lg font-semibold text-text">{t.movie.soundtrack}</h2>
         <Link
           href={albumUrl}
           target="_blank"
           rel="noopener noreferrer"
           className="font-roboto text-xs text-purple-light underline"
         >
-          see full album →
+          {t.movie.seeAlbum}
         </Link>
       </div>
 
@@ -118,7 +122,7 @@ export default function SoundtrackSection({
                       className="shrink-0 hover:text-purple-light"
                       onClick={(e) => e.stopPropagation()}
                     >
-                      Open in Apple Music
+                      {t.movie.openApple}
                     </Link>
                   )}
                 </div>
@@ -164,7 +168,7 @@ export default function SoundtrackSection({
           <div className="min-w-0 flex-1">
             <p className="truncate font-outfit text-sm font-semibold text-white">{albumName}</p>
             <p className="font-roboto text-xs text-text-muted">
-              {totalTracks} tracks
+              {totalTracks} {t.movie.tracks}
             </p>
           </div>
 
@@ -174,7 +178,7 @@ export default function SoundtrackSection({
             target="_blank"
             rel="noopener noreferrer"
             className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-surface text-text-muted transition-colors hover:text-white"
-            aria-label="Open album in Spotify"
+            aria-label={t.movie.openSpotify}
           >
             <Music size={14} />
           </Link>
@@ -184,7 +188,7 @@ export default function SoundtrackSection({
 
       {playingId && (
         <p className="mt-2 text-center font-roboto text-[11px] text-text-muted">
-          Playing 30s preview · <button onClick={() => { audioRef.current?.pause(); setPlayingId(null) }} className="underline hover:text-white">stop</button>
+          {t.movie.playing} <button onClick={() => { audioRef.current?.pause(); setPlayingId(null) }} className="underline hover:text-white">{t.movie.stop}</button>
         </p>
       )}
     </section>

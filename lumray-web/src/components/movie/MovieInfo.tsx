@@ -1,3 +1,8 @@
+'use client'
+
+import { useLanguageStore } from '@/store/language.store'
+import { useT } from '@/lib/i18n'
+
 export interface MovieInfoProps {
   director?: string
   writers?: string[]
@@ -49,23 +54,25 @@ export default function MovieInfo({
   studio,
   released,
 }: MovieInfoProps) {
+  const lang = useLanguageStore(s => s.lang)
+  const t    = useT(lang)
   const rows: { label: string; value: string; link?: boolean }[] = []
 
-  if (director) rows.push({ label: 'Director', value: director, link: true })
+  if (director) rows.push({ label: t.movie.director, value: director, link: true })
   if (writers?.length) {
-    rows.push({ label: 'Writers', value: writers.join(', '), link: true })
+    rows.push({ label: writers.length === 1 ? t.movie.writer : t.movie.writers, value: writers.join(', '), link: true })
   }
-  if (cinematography) rows.push({ label: 'Cinematography', value: cinematography })
-  if (music) rows.push({ label: 'Music', value: music })
-  if (runtime != null) rows.push({ label: 'Runtime', value: formatRuntime(runtime) })
-  if (language) rows.push({ label: 'Language', value: language })
+  if (cinematography) rows.push({ label: t.movie.cinematography, value: cinematography })
+  if (music) rows.push({ label: t.movie.music, value: music })
+  if (runtime != null) rows.push({ label: t.movie.runtime, value: formatRuntime(runtime) })
+  if (language) rows.push({ label: t.movie.language, value: language })
   if (country) rows.push({ label: 'Country', value: country })
   if (studio) rows.push({ label: 'Studio', value: studio })
-  if (released) rows.push({ label: 'Released', value: released })
+  if (released) rows.push({ label: t.movie.released, value: released })
 
   return (
     <section className="rounded-xl bg-surface p-5">
-      <h3 className="mb-3 font-outfit text-sm font-semibold text-text">Film info</h3>
+      <h3 className="mb-3 font-outfit text-sm font-semibold text-text">{t.movie.info}</h3>
       <div>
         {rows.map((row) => (
           <InfoRow key={row.label} {...row} />

@@ -7,9 +7,12 @@ export interface DiaryMonthGroupProps {
   month: string
   entries: DiaryEntryData[]
   view: 'list' | 'grid'
+  isOwner: boolean
+  onDelete: (id: string) => void
+  onEdit: (updated: DiaryEntryData) => void
 }
 
-export default function DiaryMonthGroup({ month, entries, view }: DiaryMonthGroupProps) {
+export default function DiaryMonthGroup({ month, entries, view, isOwner, onDelete, onEdit }: DiaryMonthGroupProps) {
   return (
     <section className="mb-8">
       <h3 className="mb-3 font-outfit text-sm font-semibold text-text-muted">{month}</h3>
@@ -17,7 +20,7 @@ export default function DiaryMonthGroup({ month, entries, view }: DiaryMonthGrou
       {view === 'list' ? (
         <div>
           {entries.map((entry) => (
-            <DiaryEntryRow key={entry.id} entry={entry} />
+            <DiaryEntryRow key={entry.id} entry={entry} isOwner={isOwner} onDelete={onDelete} onEdit={onEdit} />
           ))}
         </div>
       ) : (

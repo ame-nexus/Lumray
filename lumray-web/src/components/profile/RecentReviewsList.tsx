@@ -1,8 +1,12 @@
+'use client'
+
 import Image from 'next/image'
 import Link from 'next/link'
 import { Heart, MessageCircle } from 'lucide-react'
 import StarRating from '@/components/ui/StarRating'
 import { tmdbPoster } from '@/lib/tmdbImage'
+import { useLanguageStore } from '@/store/language.store'
+import { useT } from '@/lib/i18n'
 
 export interface RecentReviewsListProps {
   username: string
@@ -34,6 +38,8 @@ function ProfileReviewCard({
 }: {
   review: RecentReviewsListProps['reviews'][number]
 }) {
+  const lang = useLanguageStore(s => s.lang)
+  const t    = useT(lang)
   const year = releaseYear(review.movie.releaseDate)
   const posterSrc = review.movie.posterPath
     ? tmdbPoster(review.movie.posterPath, 'w300')
@@ -91,11 +97,11 @@ function ProfileReviewCard({
         <div className="mt-3 flex items-center gap-4 font-roboto text-xs text-text-muted">
           <span className="inline-flex items-center gap-1">
             <Heart size={12} />
-            {review._count.likes} likes
+            {review._count.likes} {t.profile.likes}
           </span>
           <span className="inline-flex items-center gap-1">
             <MessageCircle size={12} />
-            {review._count.comments} comments
+            {review._count.comments} {t.profile.comments}
           </span>
         </div>
       </div>
@@ -104,23 +110,31 @@ function ProfileReviewCard({
 }
 
 export default function RecentReviewsList({ username, reviews }: RecentReviewsListProps) {
+  const lang = useLanguageStore(s => s.lang)
+  const t    = useT(lang)
   return (
     <section>
       <div className="mb-4 flex items-center justify-between gap-4">
-        <h2 className="font-outfit text-lg font-semibold text-text">Recent reviews</h2>
-        <Link
-          href={`/profile/${username}/reviews`}
-          className="font-roboto text-sm text-purple-light hover:text-text transition-colors"
-        >
-          more →
-        </Link>
+        <h2 className="font-outfit text-lg font-semibold text-text">{t.profile.recentReviews}</h2>
+        {reviews.length > 0 && (
+          <Link
+            href={`/profile/${username}/reviews`}
+            className="font-roboto text-sm text-purple-light transition-colors hover:text-text"
+          >
+            {t.profile.more}
+          </Link>
+        )}
       </div>
 
-      <div>
-        {reviews.map((review) => (
-          <ProfileReviewCard key={review.id} review={review} />
-        ))}
-      </div>
+      {reviews.length === 0 ? (
+        <p className="py-6 font-roboto text-sm text-text-muted">{t.profile.noReviews}</p>
+      ) : (
+        <div>
+          {reviews.map((review) => (
+            <ProfileReviewCard key={review.id} review={review} />
+          ))}
+        </div>
+      )}
     </section>
   )
 }

@@ -4,6 +4,8 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { Star, ChevronLeft } from 'lucide-react'
 import { useRouter } from 'next/navigation'
+import { useLanguageStore } from '@/store/language.store'
+import { useT } from '@/lib/i18n'
 
 interface Genre { genre: { name: string } }
 interface CrewMember {
@@ -50,10 +52,12 @@ export default function MovieHero({
   title, tagline, posterPath, backdropPath, releaseDate,
   runtime, language, voteAverage, voteCount, genres, crew,
 }: MovieHeroProps) {
-  const router = useRouter()
+  const router   = useRouter()
+  const lang     = useLanguageStore(s => s.lang)
+  const t        = useT(lang)
   const director = crew.find(c => c.job === 'Director')
-  const year = releaseDate?.slice(0, 4)
-  const stars = voteAverage / 2  // TMDb is /10, Lumray is /5
+  const year     = releaseDate?.slice(0, 4)
+  const stars    = voteAverage / 2  // TMDb is /10, Lumray is /5
 
   return (
     <section className="relative w-full overflow-hidden min-h-[460px] md:min-h-[540px] flex flex-col justify-end pt-110">
@@ -82,7 +86,7 @@ export default function MovieHero({
         className="absolute top-5 left-6 z-20 md:left-12 xl:left-60 flex items-center gap-1 rounded-full border border-white/30 px-4 py-2 text-sm text-white/80 transition-colors hover:bg-white/10"
       >
         <ChevronLeft size={16} />
-        Back
+        {t.movie.back}
       </button>
 
       {/* Content pinned to bottom */}
@@ -138,7 +142,7 @@ export default function MovieHero({
             {/* Director */}
             {director && (
               <p className="font-roboto text-sm text-text-dim">
-                Directed by{' '}
+                {t.movie.directedBy}{' '}
                 <Link
                   href={`/person/${director.person.tmdbId}`}
                   className="font-medium text-purple-light hover:underline"
@@ -190,7 +194,7 @@ export default function MovieHero({
                 <span className="font-roboto text-sm font-semibold text-white">{stars.toFixed(1)}</span>
                 {voteCount > 0 && (
                   <span className="font-roboto text-xs text-text-muted">
-                    {formatCount(voteCount)} ratings
+                    {formatCount(voteCount)} {t.movie.ratings}
                   </span>
                 )}
               </div>

@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation'
 import MovieHero from '@/components/movie/MovieHero'
+import MovieOverview from '@/components/movie/MovieOverview'
 import SoundtrackSection from '@/components/movie/SoundtrackSection'
 import {
   CastCrewSection,
@@ -153,9 +154,7 @@ export default async function MovieDetailPage({ params }: { params: Promise<{ id
           <div className="min-w-0 flex-1 space-y-10">
 
             {movie.overview && (
-              <p className="font-roboto text-base leading-relaxed text-text-dim max-w-3xl">
-                {movie.overview}
-              </p>
+              <MovieOverview tmdbId={movie.tmdbId} overview={movie.overview} />
             )}
 
             {/* Inline actions card — mobile/tablet only */}

@@ -1,38 +1,32 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { createPortal } from 'react-dom'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import {
-  Bookmark, Eye, Heart, Star, StarHalf,
+  Bookmark, Eye, Heart, Star,
   PenLine, ListPlus, ImagePlus, Share2,
 } from 'lucide-react'
 import { useAuthStore } from '@/store/auth.store'
+import { useFilmStatusStore } from '@/store/filmStatus.store'
 import api from '@/services/api'
 import ReviewModal from './ReviewModal'
 import AddToListsModal from './AddToListsModal'
+import { useLanguageStore } from '@/store/language.store'
+import { useT } from '@/lib/i18n'
 
 export interface MovieActionsProps {
   movieId: string
   movieTitle?: string
-  // extra props used only by the mobileInline variant
   posterPath?: string | null
   releaseDate?: string | null
   director?: string | null
   mobileInline?: boolean
 }
 
-const ACTION_LINKS = [
-  { label: 'Review or Log',          icon: PenLine,   key: 'review'  },
-  { label: 'Add to lists',           icon: ListPlus,  key: 'lists'   },
-  { label: 'Change Poster/Backdrop', icon: ImagePlus, key: 'poster'  },
-  { label: 'Share',                  icon: Share2,    key: 'share'   },
-] as const
-
 function nextRating(current: number, star: number): number {
-  if (current === star)        return star - 0.5
-  if (current === star - 0.5)  return star - 1
+  if (current === star)       return star - 0.5
+  if (current === star - 0.5) return star - 1
   return star
 }
 
@@ -40,7 +34,7 @@ function StarPicker({ value, onPick, size = 28 }: { value: number; onPick: (n: n
   return (
     <div className="flex justify-center gap-1">
       {Array.from({ length: 5 }, (_, i) => {
-        const star = i + 1
+        const star   = i + 1
         const isFull = value >= star
         const isHalf = !isFull && value >= star - 0.5
         return (
@@ -65,16 +59,21 @@ function StarPicker({ value, onPick, size = 28 }: { value: number; onPick: (n: n
 }
 
 interface ToggleRowProps {
-  compact?: boolean
-  watched: boolean; favourite: boolean; watchlisted: boolean
-  onToggleWatched: () => void; onToggleFavourite: () => void; onToggleWatchlist: () => void
+  compact?:          boolean
+  watched:           boolean
+  favourite:         boolean
+  watchlisted:       boolean
+  onToggleWatched:   () => void
+  onToggleFavourite: () => void
+  onToggleWatchlist: () => void
+  labels: { watched: string; favourite: string; watchlist: string }
 }
 
-function ToggleRow({ compact, watched, favourite, watchlisted, onToggleWatched, onToggleFavourite, onToggleWatchlist }: ToggleRowProps) {
+function ToggleRow({ compact, watched, favourite, watchlisted, onToggleWatched, onToggleFavourite, onToggleWatchlist, labels }: ToggleRowProps) {
   const buttons = [
-    { key: 'watched',   label: 'Watched',   icon: Eye,      active: watched,     onClick: onToggleWatched   },
-    { key: 'favourite', label: 'Favourite', icon: Heart,    active: favourite,   onClick: onToggleFavourite },
-    { key: 'watchlist', label: 'Watchlist', icon: Bookmark, active: watchlisted, onClick: onToggleWatchlist },
+    { key: 'watched',   label: labels.watched,   icon: Eye,      active: watched,     onClick: onToggleWatched   },
+    { key: 'favourite', label: labels.favourite, icon: Heart,    active: favourite,   onClick: onToggleFavourite },
+    { key: 'watchlist', label: labels.watchlist, icon: Bookmark, active: watchlisted, onClick: onToggleWatchlist },
   ] as const
 
   return (
@@ -100,29 +99,26 @@ export default function MovieActions({
 }: MovieActionsProps) {
   const router = useRouter()
   const user   = useAuthStore(s => s.user)
+  const lang   = useLanguageStore(s => s.lang)
+  const t      = useT(lang)
 
-  const [watched,      setWatched]      = useState(false)
-  const [favourite,    setFavourite]    = useState(false)
-  const [watchlisted,  setWatchlisted]  = useState(false)
-  const [rating,       setRating]       = useState(0)
-  const [reviewOpen,   setReviewOpen]   = useState(false)
-  const [listsOpen,    setListsOpen]    = useState(false)
-  const [mounted,      setMounted]      = useState(false)
+  // ── Global film-status store ──────────────────────────────────────────────
+  const loadStatus  = useFilmStatusStore(s => s.load)
+  const setStatus   = useFilmStatusStore(s => s.set)
+  const status      = useFilmStatusStore(s => s.statuses[movieId])
 
-  useEffect(() => { setMounted(true) }, [])
+  const watched    = status?.watched    ?? false
+  const favourite  = status?.favourite  ?? false
+  const watchlisted = status?.watchlisted ?? false
+  const rating     = status?.rating     ?? 0
 
+  const [reviewOpen, setReviewOpen] = useState(false)
+  const [listsOpen,  setListsOpen]  = useState(false)
+
+  // Load status from API on mount (no-op if already cached in store)
   useEffect(() => {
-    if (!user || !movieId) return
-    api.get(`/api/film-status/${movieId}`)
-      .then(res => {
-        const d = res.data.data
-        setWatched(d.watched)
-        setFavourite(d.favourite)
-        setWatchlisted(d.watchlisted)
-        setRating(d.rating ?? 0)
-      })
-      .catch(() => {})
-  }, [user, movieId])
+    if (user && movieId) loadStatus(movieId)
+  }, [user, movieId, loadStatus])
 
   function requireAuth(): boolean {
     if (user) return false
@@ -133,35 +129,42 @@ export default function MovieActions({
   async function handleWatched() {
     if (requireAuth()) return
     const next = !watched
-    setWatched(next)
-    if (next) await api.post(`/api/film-status/${movieId}/watched`).catch(() => setWatched(!next))
+    setStatus(movieId, { watched: next, ...(next ? {} : { rating: 0 }) })
+    if (!next && rating > 0) {
+      await api.delete(`/api/ratings/${movieId}`).catch(() => {})
+    }
+    await api.post(`/api/film-status/${movieId}/watched`)
+      .then(res => setStatus(movieId, { watched: res.data.data.watched ?? next }))
+      .catch(() => setStatus(movieId, { watched: !next, ...(next ? {} : { rating }) }))
   }
 
   async function handleFavourite() {
     if (requireAuth()) return
-    setFavourite(v => !v)
+    const next = !favourite
+    setStatus(movieId, { favourite: next })
     api.post(`/api/film-status/${movieId}/favourite`)
-      .then(res => setFavourite(res.data.data.favourite))
-      .catch(() => setFavourite(v => !v))
+      .then(res => setStatus(movieId, { favourite: res.data.data.favourite ?? next }))
+      .catch(() => setStatus(movieId, { favourite: !next }))
   }
 
   async function handleWatchlist() {
     if (requireAuth()) return
-    setWatchlisted(v => !v)
+    const next = !watchlisted
+    setStatus(movieId, { watchlisted: next })
     api.post(`/api/film-status/${movieId}/watchlist`)
-      .then(res => setWatchlisted(res.data.data.watchlisted))
-      .catch(() => setWatchlisted(v => !v))
+      .then(res => setStatus(movieId, { watchlisted: res.data.data.watchlisted ?? next }))
+      .catch(() => setStatus(movieId, { watchlisted: !next }))
   }
 
   async function handleRating(newRating: number) {
     if (requireAuth()) return
-    setRating(newRating)
+    setStatus(movieId, { rating: newRating })
     if (newRating === 0) {
       await api.delete(`/api/ratings/${movieId}`).catch(() => {})
     } else {
       await api.post('/api/ratings', { movieId, score: newRating }).catch(() => {})
       if (!watched) {
-        setWatched(true)
+        setStatus(movieId, { watched: true })
         await api.post(`/api/film-status/${movieId}/watched`).catch(() => {})
       }
     }
@@ -173,11 +176,19 @@ export default function MovieActions({
     if (key === 'lists')  setListsOpen(true)
   }
 
+  const actionLinks = [
+    { label: t.movie.reviewLog,    icon: PenLine,   key: 'review' as const },
+    { label: t.movie.addToLists,   icon: ListPlus,  key: 'lists'  as const },
+    { label: t.movie.changePoster, icon: ImagePlus, key: 'poster' as const },
+    { label: t.movie.share,        icon: Share2,    key: 'share'  as const },
+  ]
+
   const toggleProps: ToggleRowProps = {
     watched, favourite, watchlisted,
     onToggleWatched:   handleWatched,
     onToggleFavourite: handleFavourite,
     onToggleWatchlist: handleWatchlist,
+    labels: { watched: t.movie.watched, favourite: t.movie.favourite, watchlist: t.movie.watchlist },
   }
 
   const posterSrc = posterPath
@@ -209,8 +220,6 @@ export default function MovieActions({
     return (
       <>
         <div className="rounded-xl bg-surface p-5 space-y-5">
-
-          {/* Poster + info header */}
           <div className="flex gap-4">
             <div className="relative h-36 w-24 shrink-0 overflow-hidden rounded-lg bg-surface-2">
               {posterSrc && (
@@ -224,28 +233,25 @@ export default function MovieActions({
               )}
               {director && (
                 <p className="font-roboto text-xs text-text-muted">
-                  Directed by <span className="text-purple-light">{director}</span>
+                  {t.movie.directedBy} <span className="text-purple-light">{director}</span>
                 </p>
               )}
             </div>
           </div>
 
-          {/* Watched / Favourite / Watchlist */}
           <ToggleRow {...toggleProps} />
 
-          {/* Star rating */}
           <div>
             <p className="mb-2 font-roboto text-xs text-text-muted">
-              {rating > 0 ? `Rated ${rating} / 5` : 'Rate this film'}
+              {rating > 0 ? `${t.movie.rated} ${rating} ${t.movie.outOf5}` : t.movie.rateThisFilm}
             </p>
             <StarPicker value={rating} onPick={handleRating} size={26} />
           </div>
 
           <div className="border-t border-text/10" />
 
-          {/* Action links */}
           <div className="divide-y divide-text/10">
-            {ACTION_LINKS.map(({ label, icon: Icon, key }) => (
+            {actionLinks.map(({ label, icon: Icon, key }) => (
               <button
                 key={key}
                 type="button"
@@ -263,32 +269,28 @@ export default function MovieActions({
     )
   }
 
-  // ── Desktop sidebar card + mobile strip + bottom sheet ─────────────────
-  const desktopCard = (
-    <div className="hidden rounded-xl bg-surface p-5 lg:block">
-      <ToggleRow {...toggleProps} />
-      <div className="my-5">
-        <StarPicker value={rating} onPick={handleRating} />
-      </div>
-      <div className="divide-y divide-text/10">
-        {ACTION_LINKS.map(({ label, icon: Icon, key }) => (
-          <button
-            key={key}
-            type="button"
-            onClick={() => handleAction(key)}
-            className="flex w-full items-center justify-center gap-2 py-2.5 font-roboto text-sm text-text transition-colors hover:text-purple-light"
-          >
-            <Icon size={15} className="shrink-0 opacity-70" />
-            {label}
-          </button>
-        ))}
-      </div>
-    </div>
-  )
-
+  // ── Desktop sidebar card ────────────────────────────────────────────────
   return (
     <>
-      {desktopCard}
+      <div className="hidden rounded-xl bg-surface p-5 lg:block">
+        <ToggleRow {...toggleProps} />
+        <div className="my-5">
+          <StarPicker value={rating} onPick={handleRating} />
+        </div>
+        <div className="divide-y divide-text/10">
+          {actionLinks.map(({ label, icon: Icon, key }) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => handleAction(key)}
+              className="flex w-full items-center justify-center gap-2 py-2.5 font-roboto text-sm text-text transition-colors hover:text-purple-light"
+            >
+              <Icon size={15} className="shrink-0 opacity-70" />
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
       {modals}
     </>
   )

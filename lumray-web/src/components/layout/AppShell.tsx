@@ -7,17 +7,19 @@ import { usePathname } from 'next/navigation'
 import Navbar from './Navbar'
 import Footer from './Footer'
 
-const AUTH_ROUTES = ['/login', '/signup', '/verify-email', '/forgot-password', '/reset-password', '/auth/callback']
+const AUTH_ROUTES    = ['/login', '/signup', '/verify-email', '/forgot-password', '/reset-password', '/auth/callback']
+const NO_FOOTER_ROUTES = ['/messages']
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
     const pathname = usePathname()
-    const isAuth = AUTH_ROUTES.includes(pathname)
+    const isAuth      = AUTH_ROUTES.includes(pathname)
+    const hideFooter  = NO_FOOTER_ROUTES.some(r => pathname.startsWith(r))
 
     return (
         <>
             {!isAuth && <Navbar />}
             {children}
-            {!isAuth && <Footer />}
+            {!isAuth && !hideFooter && <Footer />}
         </>
     )
 }

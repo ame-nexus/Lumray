@@ -1,5 +1,9 @@
+'use client'
+
 import { Eye, PenLine, Plus, UserPlus } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
+import { useLanguageStore } from '@/store/language.store'
+import { useT } from '@/lib/i18n'
 
 export interface ActivityItem {
   id: string
@@ -20,9 +24,11 @@ const ICONS: Record<ActivityItem['type'], LucideIcon> = {
 }
 
 export default function RecentActivityCard({ items }: RecentActivityCardProps) {
+  const lang = useLanguageStore(s => s.lang)
+  const t    = useT(lang)
   return (
     <section className="rounded-xl bg-surface p-4">
-      <h3 className="mb-4 font-outfit text-sm font-semibold text-text">Recent activity</h3>
+      <h3 className="mb-4 font-outfit text-sm font-semibold text-text">{t.profile.recentActivity}</h3>
 
       <ul className="space-y-3">
         {items.map((item) => {
