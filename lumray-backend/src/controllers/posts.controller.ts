@@ -64,15 +64,30 @@ export const getPostComments = async (req: Request, res: Response) => {
 export const createPost = async (req: AuthRequest, res: Response) => {
     try {
         const userId = req.user!.id
-        const { content, movieId, tags } = req.body
+        const { content, movieId, movieTmdbId, movieTitle, moviePosterPath, imageUrl, tags } = req.body
 
-        if (!content?.trim()) return res.status(400).json({ data: null, error: 'Bad request', message: 'content is required' })
+        const text = content?.trim() ?? ''
+        if (!text && !imageUrl && !movieTmdbId && !movieId) {
+            return res.status(400).json({ data: null, error: 'Bad request', message: 'Post needs text, an image, or a film' })
+        }
+
+        // Resolve a film reference: ensure a (minimal) Movie row exists so movieId FK is valid
+        let resolvedMovieId: string | null = movieId ?? null
+        if (!resolvedMovieId && movieTmdbId) {
+            const movie = await prisma.movie.upsert({
+                where:  { tmdbId: Number(movieTmdbId) },
+                create: { tmdbId: Number(movieTmdbId), title: movieTitle ?? 'Untitled', overview: '', posterPath: moviePosterPath ?? null },
+                update: {},
+            })
+            resolvedMovieId = movie.id
+        }
 
         const post = await prisma.post.create({
             data: {
                 userId,
-                content: content.trim(),
-                movieId: movieId ?? null,
+                content: text,
+                movieId: resolvedMovieId,
+                imageUrl: imageUrl ?? null,
                 tags: tags ?? [],
             },
             include: {
@@ -139,16 +154,63 @@ export const commentOnPost = async (req: AuthRequest, res: Response) => {
     try {
         const userId = req.user!.id
         const { id: postId } = req.params
-        const { content } = req.body
+        const { content, parentId } = req.body
 
         if (!content?.trim()) return res.status(400).json({ data: null, error: 'Bad request', message: 'content is required' })
 
         const comment = await prisma.comment.create({
-            data: { userId, postId, content: content.trim() },
+            data: { userId, postId, content: content.trim(), parentId: parentId ?? null },
             include: { user: { select: { id: true, username: true, avatar: true } } },
         })
 
         return res.status(201).json({ data: comment, error: null, message: 'Comment added' })
+    } catch (error) {
+        return res.status(500).json({ data: null, error: 'Server error', message: String(error) })
+    }
+}
+
+export const editComment = async (req: AuthRequest, res: Response) => {
+    try {
+        const userId = req.user!.id
+        const { commentId } = req.params
+        const { content } = req.body
+
+        if (!content?.trim()) return res.status(400).json({ data: null, error: 'Bad request', message: 'content is required' })
+
+        const existing = await prisma.comment.findUnique({ where: { id: commentId } })
+        if (!existing) return res.status(404).json({ data: null, error: 'Not found', message: 'Comment not found' })
+        if (existing.userId !== userId) return res.status(403).json({ data: null, error: 'Forbidden', message: 'Not your comment' })
+
+        const comment = await prisma.comment.update({
+            where: { id: commentId },
+            data:  { content: content.trim() },
+            include: { user: { select: { id: true, username: true, avatar: true } } },
+        })
+
+        return res.json({ data: comment, error: null, message: 'Comment updated' })
+    } catch (error) {
+        return res.status(500).json({ data: null, error: 'Server error', message: String(error) })
+    }
+}
+
+export const deleteComment = async (req: AuthRequest, res: Response) => {
+    try {
+        const userId = req.user!.id
+        const { commentId } = req.params
+
+        const existing = await prisma.comment.findUnique({
+            where: { id: commentId },
+            include: { post: { select: { userId: true } } },
+        })
+        if (!existing) return res.status(404).json({ data: null, error: 'Not found', message: 'Comment not found' })
+
+        // The comment author OR the post owner may delete it
+        const canDelete = existing.userId === userId || existing.post?.userId === userId
+        if (!canDelete) return res.status(403).json({ data: null, error: 'Forbidden', message: 'Not allowed' })
+
+        await prisma.comment.delete({ where: { id: commentId } })  // replies cascade
+
+        return res.json({ data: { id: commentId }, error: null, message: 'Comment deleted' })
     } catch (error) {
         return res.status(500).json({ data: null, error: 'Server error', message: String(error) })
     }

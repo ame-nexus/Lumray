@@ -38,6 +38,22 @@ export const getConversations = async (req: AuthRequest, res: Response) => {
     }
 }
 
+export const getUnreadCount = async (req: AuthRequest, res: Response) => {
+    try {
+        const userId = req.user!.id
+        const count = await prisma.message.count({
+            where: {
+                senderId: { not: userId },
+                read: false,
+                conversation: { participants: { some: { userId } } },
+            },
+        })
+        return res.json({ data: { count }, error: null, message: 'ok' })
+    } catch (error) {
+        return res.status(500).json({ data: null, error: 'Server error', message: String(error) })
+    }
+}
+
 export const startConversation = async (req: AuthRequest, res: Response) => {
     try {
         const userId = req.user!.id
@@ -145,6 +161,51 @@ export const sendMessage = async (req: AuthRequest, res: Response) => {
         } catch { /* Socket.io not yet ready — response still sent */ }
 
         return res.status(201).json({ data: message, error: null, message: 'Sent' })
+    } catch (error) {
+        return res.status(500).json({ data: null, error: 'Server error', message: String(error) })
+    }
+}
+
+export const editMessage = async (req: AuthRequest, res: Response) => {
+    try {
+        const userId = req.user!.id
+        const { messageId } = req.params
+        const { content } = req.body
+
+        if (!content?.trim()) return res.status(400).json({ data: null, error: 'Bad request', message: 'content required' })
+
+        const existing = await prisma.message.findUnique({ where: { id: messageId } })
+        if (!existing) return res.status(404).json({ data: null, error: 'Not found', message: 'Message not found' })
+        if (existing.senderId !== userId) return res.status(403).json({ data: null, error: 'Forbidden', message: 'Not your message' })
+
+        const message = await prisma.message.update({
+            where: { id: messageId },
+            data:  { content: content.trim() },
+            include: { sender: { select: { id: true, username: true, avatar: true } } },
+        })
+
+        try { getIO().to(`conversation:${existing.conversationId}`).emit('message_edited', message) } catch { /* socket not ready */ }
+
+        return res.json({ data: message, error: null, message: 'Edited' })
+    } catch (error) {
+        return res.status(500).json({ data: null, error: 'Server error', message: String(error) })
+    }
+}
+
+export const deleteMessage = async (req: AuthRequest, res: Response) => {
+    try {
+        const userId = req.user!.id
+        const { messageId } = req.params
+
+        const existing = await prisma.message.findUnique({ where: { id: messageId } })
+        if (!existing) return res.status(404).json({ data: null, error: 'Not found', message: 'Message not found' })
+        if (existing.senderId !== userId) return res.status(403).json({ data: null, error: 'Forbidden', message: 'Not your message' })
+
+        await prisma.message.delete({ where: { id: messageId } })
+
+        try { getIO().to(`conversation:${existing.conversationId}`).emit('message_deleted', { id: messageId, conversationId: existing.conversationId }) } catch { /* socket not ready */ }
+
+        return res.json({ data: { id: messageId }, error: null, message: 'Deleted' })
     } catch (error) {
         return res.status(500).json({ data: null, error: 'Server error', message: String(error) })
     }

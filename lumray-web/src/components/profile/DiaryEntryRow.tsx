@@ -280,7 +280,7 @@ export default function DiaryEntryRow({ entry, isOwner, onDelete, onEdit }: Diar
         {/* Actions — desktop: appear on row hover */}
         {isOwner && (
           <>
-            <div className="hidden shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100 md:flex">
+            <div className="hidden shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100 lg:flex">
               <button
                 type="button"
                 onClick={() => setShowEdit(true)}
@@ -301,7 +301,7 @@ export default function DiaryEntryRow({ entry, isOwner, onDelete, onEdit }: Diar
             </div>
 
             {/* Mobile/tablet: always visible, no hover */}
-            <div className="flex shrink-0 items-center gap-0.5 md:hidden">
+            <div className="flex shrink-0 items-center gap-0.5 lg:hidden">
               <button
                 type="button"
                 onClick={() => setShowEdit(true)}

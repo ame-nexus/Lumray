@@ -1,13 +1,14 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { Search, Bell, ChevronDown, LogOut, User, Film, BookOpen, Star, List, Globe, MessageSquare } from 'lucide-react'
+import { Search, ChevronDown, LogOut, User, Film, BookOpen, Star, List, Globe, MessageSquare } from 'lucide-react'
 import { useAuthStore } from '@/store/auth.store'
 import { useLanguageStore, type Lang } from '@/store/language.store'
 import { useT } from '@/lib/i18n'
+import api from '@/services/api'
 import SearchModal from '@/components/search/SearchModal'
 
 const LANGS: { code: Lang; label: string; flag: string }[] = [
@@ -136,7 +137,19 @@ export default function Navbar() {
     const user       = useAuthStore(s => s.user)
     const lang       = useLanguageStore(s => s.lang)
     const t          = useT(lang)
+    const pathname   = usePathname()
     const [searchOpen, setSearchOpen] = useState(false)
+    const [unread, setUnread]         = useState(0)
+
+    // Unread DM count — refetch on navigation so it clears after reading messages
+    useEffect(() => {
+        if (!user) return
+        let cancelled = false
+        api.get('/api/messages/unread-count')
+            .then(res => { if (!cancelled) setUnread(res.data.data.count ?? 0) })
+            .catch(() => {})
+        return () => { cancelled = true }
+    }, [user, pathname])
 
     return (
         <>
@@ -159,15 +172,14 @@ export default function Navbar() {
                         <Search size={20} />
                     </button>
                     {user && (
-                        <>
-                            <Link href="/messages" className="text-text hover:text-white transition-colors" aria-label="Messages">
-                                <MessageSquare size={20} />
-                            </Link>
-                            <button className="relative text-text hover:text-white transition-colors">
-                                <Bell size={20} />
-                                <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-purple rounded-full" />
-                            </button>
-                        </>
+                        <Link href="/messages" className="relative text-text hover:text-white transition-colors" aria-label="Messages">
+                            <MessageSquare size={20} />
+                            {unread > 0 && (
+                                <span className="absolute -top-1.5 -right-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-purple px-1 font-roboto text-[10px] font-bold text-white">
+                                    {unread > 9 ? '9+' : unread}
+                                </span>
+                            )}
+                        </Link>
                     )}
                     {user ? (
                         <UserMenu />
@@ -193,13 +205,14 @@ export default function Navbar() {
                         </button>
                         {user ? (
                             <>
-                                <Link href="/messages" className="text-text hover:text-white transition-colors" aria-label="Messages">
+                                <Link href="/messages" className="relative text-text hover:text-white transition-colors" aria-label="Messages">
                                     <MessageSquare size={18} />
+                                    {unread > 0 && (
+                                        <span className="absolute -top-1.5 -right-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-purple px-1 font-roboto text-[10px] font-bold text-white">
+                                            {unread > 9 ? '9+' : unread}
+                                        </span>
+                                    )}
                                 </Link>
-                                <button className="relative text-text hover:text-white transition-colors">
-                                    <Bell size={18} />
-                                    <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-purple rounded-full" />
-                                </button>
                                 <UserMenu />
                             </>
                         ) : (

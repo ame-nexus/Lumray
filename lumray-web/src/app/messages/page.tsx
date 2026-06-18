@@ -6,7 +6,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
   Send, Plus, X, MessageSquare, ArrowLeft, Loader2, Paperclip, Film, Search,
-  Check, CheckCheck, AlertCircle, RotateCw, ChevronDown,
+  Check, CheckCheck, AlertCircle, RotateCw, ChevronDown, Pencil, Trash2,
 } from 'lucide-react'
 import api from '@/services/api'
 import { useAuthStore } from '@/store/auth.store'
@@ -121,11 +121,11 @@ function MoviePickerModal({ onClose, onSelect }: {
       if (q.length < 2) { setResults([]); setLoading(false); return }
       setLoading(true)
       try {
-        const res = await api.get('/api/movies/search', { params: { q } })
+        const res = await api.get('/api/search', { params: { q, type: 'movies', limit: 12 } })
         if (cancelled) return
-        const raw = res.data.data ?? []
-        setResults(raw.slice(0, 8).map((m: { tmdbId?: number; id?: number; title: string; posterPath: string | null }) => ({
-          tmdbId:     m.tmdbId ?? m.id,
+        const raw = (res.data.data?.movies ?? []) as { tmdbId: number; title: string; posterPath: string | null }[]
+        setResults(raw.slice(0, 8).map(m => ({
+          tmdbId:     m.tmdbId,
           title:      m.title,
           posterPath: m.posterPath,
         })))
@@ -341,7 +341,7 @@ function ReadReceipt({ status, read }: { status?: SendStatus; read: boolean }) {
 
 // ── Message Bubble ─────────────────────────────────────────────────────────
 
-function MessageBubble({ msg, isOwn, showAvatar, isFirstInGroup, isLastInGroup, other, onRetry }: {
+function MessageBubble({ msg, isOwn, showAvatar, isFirstInGroup, isLastInGroup, other, onRetry, onEdit, onDelete }: {
   msg: Message
   isOwn: boolean
   showAvatar: boolean
@@ -349,11 +349,24 @@ function MessageBubble({ msg, isOwn, showAvatar, isFirstInGroup, isLastInGroup, 
   isLastInGroup: boolean
   other: OtherUser
   onRetry: (msg: Message) => void
+  onEdit: (id: string, content: string) => void
+  onDelete: (id: string) => void
 }) {
   const hasContent    = msg.content?.trim()
   const hasAttachment = msg.attachmentUrl
   const hasMovie      = msg.movieTmdbId && msg.movieTitle
   const failed        = msg.status === 'failed'
+
+  const [editing, setEditing] = useState(false)
+  const [draft,   setDraft]   = useState(msg.content)
+
+  const startEdit  = () => { setDraft(msg.content); setEditing(true) }
+  const cancelEdit = () => { setEditing(false); setDraft(msg.content) }
+  const saveEdit   = () => {
+    const t = draft.trim()
+    if (t && t !== msg.content) onEdit(msg.id, t)
+    setEditing(false)
+  }
 
   // Bubble corner rounding for stacked grouping
   const ownCorners = isFirstInGroup && isLastInGroup
@@ -401,18 +414,49 @@ function MessageBubble({ msg, isOwn, showAvatar, isFirstInGroup, isLastInGroup, 
           </a>
         )}
 
-        {/* Text bubble + receipt */}
+        {/* Text bubble + edit/delete actions */}
         {hasContent && (
-          <div className={`flex items-end gap-1.5 ${isOwn ? 'flex-row-reverse' : 'flex-row'}`}>
-            <div
-              className={`px-3.5 py-2 font-roboto text-sm leading-relaxed wrap-break-word ${
-                isOwn
-                  ? `${failed ? 'bg-red-500/80' : 'bg-purple'} text-white ${ownCorners}`
-                  : `bg-surface-2 text-text ${otherCorners}`
-              }`}
-            >
-              {msg.content}
-            </div>
+          <div className={`flex items-center gap-1.5 ${isOwn ? 'flex-row-reverse' : 'flex-row'}`}>
+            {editing ? (
+              <div className={`flex items-center gap-1 ${isOwn ? 'flex-row-reverse' : 'flex-row'}`}>
+                <input
+                  value={draft}
+                  onChange={e => setDraft(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') { e.preventDefault(); saveEdit() }
+                    else if (e.key === 'Escape') cancelEdit()
+                  }}
+                  autoFocus
+                  className="min-w-40 rounded-2xl bg-surface-2 px-3.5 py-2 font-roboto text-sm text-text focus:outline-none focus:ring-1 focus:ring-purple/50"
+                />
+                <button type="button" onClick={saveEdit} aria-label="Save edit" className="rounded-md p-1 text-green-400 hover:bg-white/10"><Check size={15} /></button>
+                <button type="button" onClick={cancelEdit} aria-label="Cancel edit" className="rounded-md p-1 text-text-muted hover:bg-white/10 hover:text-text"><X size={15} /></button>
+              </div>
+            ) : (
+              <>
+                <div
+                  className={`px-3.5 py-2 font-roboto text-sm leading-relaxed wrap-break-word ${
+                    isOwn
+                      ? `${failed ? 'bg-red-500/80' : 'bg-purple'} text-white ${ownCorners}`
+                      : `bg-bg-dark text-text ${otherCorners}`
+                  }`}
+                >
+                  {msg.content}
+                </div>
+                {isOwn && !failed && msg.status !== 'sending' && (
+                  <div className="flex items-center gap-0.5 opacity-100 transition-opacity lg:opacity-0 lg:group-hover/msg:opacity-100">
+                    <button type="button" onClick={startEdit} aria-label="Edit message"
+                      className="rounded-md p-1 text-text-muted transition-colors hover:bg-surface-2 hover:text-text">
+                      <Pencil size={13} />
+                    </button>
+                    <button type="button" onClick={() => onDelete(msg.id)} aria-label="Delete message"
+                      className="rounded-md p-1 text-text-muted transition-colors hover:bg-red-500/15 hover:text-red-400">
+                      <Trash2 size={13} />
+                    </button>
+                  </div>
+                )}
+              </>
+            )}
           </div>
         )}
 
@@ -532,16 +576,29 @@ function ChatWindow({ convoId, other, currentUserId, isOnline }: {
     const onTypingStop = ({ conversationId, userId }: { conversationId: string; userId: string }) => {
       if (conversationId === convoId && userId !== currentUserId) setTypingVisible(false)
     }
+    const onEdited = (msg: Message) => {
+      if (msg.conversationId !== convoId) return
+      setMessages(prev => prev.map(m => (m.id === msg.id ? { ...m, content: msg.content } : m)))
+    }
+    const onDeleted = ({ id, conversationId }: { id: string; conversationId: string }) => {
+      if (conversationId !== convoId) return
+      seenIds.current.delete(id)
+      setMessages(prev => prev.filter(m => m.id !== id))
+    }
 
-    socket.on('new_message',   onNew)
-    socket.on('messages_read', onRead)
-    socket.on('typing_start',  onTypingStart)
-    socket.on('typing_stop',   onTypingStop)
+    socket.on('new_message',     onNew)
+    socket.on('messages_read',   onRead)
+    socket.on('typing_start',    onTypingStart)
+    socket.on('typing_stop',     onTypingStop)
+    socket.on('message_edited',  onEdited)
+    socket.on('message_deleted', onDeleted)
     return () => {
-      socket.off('new_message',   onNew)
-      socket.off('messages_read', onRead)
-      socket.off('typing_start',  onTypingStart)
-      socket.off('typing_stop',   onTypingStop)
+      socket.off('new_message',     onNew)
+      socket.off('messages_read',   onRead)
+      socket.off('typing_start',    onTypingStart)
+      socket.off('typing_stop',     onTypingStop)
+      socket.off('message_edited',  onEdited)
+      socket.off('message_deleted', onDeleted)
     }
   }, [convoId, currentUserId, reconcileOwn])
 
@@ -635,6 +692,17 @@ function ChatWindow({ convoId, other, currentUserId, isOnline }: {
     deliver(failed, body)
   }
 
+  const handleEditMessage = (id: string, newContent: string) => {
+    setMessages(prev => prev.map(m => (m.id === id ? { ...m, content: newContent } : m)))   // optimistic
+    api.put(`/api/messages/message/${id}`, { content: newContent }).catch(() => {})
+  }
+
+  const handleDeleteMessage = (id: string) => {
+    setMessages(prev => prev.filter(m => m.id !== id))   // optimistic
+    seenIds.current.delete(id)
+    api.delete(`/api/messages/message/${id}`).catch(() => {})
+  }
+
   const onScroll = () => setAtBottom(isNearBottom())
 
   const canSend = (content.trim() || pendingAttachment || pendingMovie) && !uploading
@@ -705,6 +773,8 @@ function ChatWindow({ convoId, other, currentUserId, isOnline }: {
                     isLastInGroup={isLastInGroup}
                     other={other}
                     onRetry={retry}
+                    onEdit={handleEditMessage}
+                    onDelete={handleDeleteMessage}
                   />
                 </div>
               )
