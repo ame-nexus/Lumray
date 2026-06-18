@@ -550,6 +550,81 @@ export const getMutualFollows = async (req: AuthRequest, res: Response) => {
     }
 }
 
+export const getUserFollowingList = async (req: Request, res: Response) => {
+    try {
+        const { username } = req.params
+        const user = await prisma.user.findUnique({ where: { username }, select: { id: true } })
+        if (!user) return res.status(404).json({ data: null, error: 'Not found', message: 'User not found' })
+
+        const follows = await prisma.follow.findMany({
+            where: { followerId: user.id },
+            include: { following: { select: { id: true, username: true, avatar: true, name: true } } },
+            orderBy: { createdAt: 'desc' },
+        })
+        return res.json({ data: follows.map(f => f.following), error: null, message: 'ok' })
+    } catch (error) {
+        return res.status(500).json({ data: null, error: 'Server error', message: String(error) })
+    }
+}
+
+export const getUserFollowersList = async (req: Request, res: Response) => {
+    try {
+        const { username } = req.params
+        const user = await prisma.user.findUnique({ where: { username }, select: { id: true } })
+        if (!user) return res.status(404).json({ data: null, error: 'Not found', message: 'User not found' })
+
+        const follows = await prisma.follow.findMany({
+            where: { followingId: user.id },
+            include: { follower: { select: { id: true, username: true, avatar: true, name: true } } },
+            orderBy: { createdAt: 'desc' },
+        })
+        return res.json({ data: follows.map(f => f.follower), error: null, message: 'ok' })
+    } catch (error) {
+        return res.status(500).json({ data: null, error: 'Server error', message: String(error) })
+    }
+}
+
+export const getUserWatchlist = async (req: Request, res: Response) => {
+    try {
+        const { username } = req.params
+        const limit = Math.min(100, parseInt((req.query.limit as string) || '8') || 8)
+        const user = await prisma.user.findUnique({ where: { username }, select: { id: true } })
+        if (!user) return res.status(404).json({ data: null, error: 'Not found', message: 'User not found' })
+
+        const rows = await prisma.watchlist.findMany({
+            where: { userId: user.id },
+            orderBy: { addedAt: 'desc' },
+            take: limit,
+            include: { movie: { select: { id: true, tmdbId: true, title: true, posterPath: true } } },
+        })
+        return res.json({ data: rows.map(r => r.movie), error: null, message: 'ok' })
+    } catch (error) {
+        return res.status(500).json({ data: null, error: 'Server error', message: String(error) })
+    }
+}
+
+export const getUserFriends = async (req: Request, res: Response) => {
+    try {
+        const { username } = req.params
+        const user = await prisma.user.findUnique({ where: { username }, select: { id: true } })
+        if (!user) return res.status(404).json({ data: null, error: 'Not found', message: 'User not found' })
+
+        // Mutual follows: people this user follows who also follow them back
+        const follows = await prisma.follow.findMany({
+            where: {
+                followerId: user.id,
+                following: { following: { some: { followingId: user.id } } },
+            },
+            include: { following: { select: { id: true, username: true, avatar: true } } },
+            orderBy: { createdAt: 'desc' },
+            take: 8,
+        })
+        return res.json({ data: follows.map(f => f.following), error: null, message: 'ok' })
+    } catch (error) {
+        return res.status(500).json({ data: null, error: 'Server error', message: String(error) })
+    }
+}
+
 export const getFollowStatus = async (req: AuthRequest, res: Response) => {
     try {
         const followerId = req.user!.id

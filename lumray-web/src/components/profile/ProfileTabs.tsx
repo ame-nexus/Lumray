@@ -9,16 +9,17 @@ export interface ProfileTabsProps {
   username: string
 }
 
-type TabKey = 'profile' | 'films' | 'diary' | 'reviews' | 'lists' | 'stats'
+type TabKey = 'profile' | 'films' | 'diary' | 'reviews' | 'lists' | 'stats' | 'watchlist'
 
 function resolveActiveTab(pathname: string, username: string): TabKey {
   const base = `/profile/${username}`
   if (pathname === base) return 'profile'
-  if (pathname.startsWith(`${base}/films`))   return 'films'
-  if (pathname.startsWith(`${base}/diary`))   return 'diary'
-  if (pathname.startsWith(`${base}/reviews`)) return 'reviews'
-  if (pathname.startsWith(`${base}/lists`))   return 'lists'
-  if (pathname.startsWith(`${base}/stats`))   return 'stats'
+  if (pathname.startsWith(`${base}/films`))     return 'films'
+  if (pathname.startsWith(`${base}/diary`))     return 'diary'
+  if (pathname.startsWith(`${base}/reviews`))   return 'reviews'
+  if (pathname.startsWith(`${base}/lists`))     return 'lists'
+  if (pathname.startsWith(`${base}/stats`))     return 'stats'
+  if (pathname.startsWith(`${base}/watchlist`)) return 'watchlist'
   return 'profile'
 }
 
@@ -33,8 +34,9 @@ export default function ProfileTabs({ username }: ProfileTabsProps) {
     { key: 'films',    label: t.profile.tabs.films,    suffix: '/films' },
     { key: 'diary',    label: t.profile.tabs.diary,    suffix: '/diary' },
     { key: 'reviews',  label: t.profile.tabs.reviews,  suffix: '/reviews' },
-    { key: 'lists',    label: t.profile.tabs.lists,    suffix: '/lists' },
-    { key: 'stats',    label: t.profile.tabs.stats,    suffix: '/stats' },
+    { key: 'lists',     label: t.profile.tabs.lists,     suffix: '/lists' },
+    { key: 'watchlist', label: t.profile.tabs.watchlist, suffix: '/watchlist' },
+    { key: 'stats',     label: t.profile.tabs.stats,     suffix: '/stats' },
   ]
 
   return (

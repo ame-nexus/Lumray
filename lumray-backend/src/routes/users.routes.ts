@@ -2,7 +2,7 @@ import { Router } from 'express'
 import { authenticate, optionalAuth } from '../middleware/auth.middleware'
 import {
     getProfile, updateProfile, followUser, unfollowUser, getFollowStatus, getMyFollowing,
-    getMutualFollows,
+    getMutualFollows, getUserFriends, getUserFollowingList, getUserFollowersList, getUserWatchlist,
     getUserFilms, getUserDiary, getUserReviews, getUserFavourites, getUserStats, getUserActivity,
 } from '../controllers/users.controller'
 
@@ -18,7 +18,11 @@ router.get('/:username/reviews',     optionalAuth, getUserReviews)
 router.get('/:username/favourites',  getUserFavourites)
 router.get('/:username/stats',       getUserStats)
 router.get('/:username/activity',    getUserActivity)
-router.get('/:username',             getProfile)
+router.get('/:username/watchlist',       getUserWatchlist)
+router.get('/:username/friends',        getUserFriends)
+router.get('/:username/following-list', getUserFollowingList)
+router.get('/:username/followers-list', getUserFollowersList)
+router.get('/:username',                getProfile)
 router.get('/:id/follow-status',     authenticate, getFollowStatus)
 router.post('/:id/follow',           authenticate, followUser)
 router.delete('/:id/follow',         authenticate, unfollowUser)

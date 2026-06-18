@@ -921,6 +921,7 @@ export default function MessagesPage() {
   const [mobileShowChat,  setMobileShowChat]  = useState(false)
   const [startingFor,     setStartingFor]     = useState<string | null>(null)
   const [onlineUserIds,   setOnlineUserIds]   = useState<Set<string>>(new Set())
+  const [notMutualUser,   setNotMutualUser]   = useState<string | null>(null)
   const [search,          setSearch]          = useState('')
 
   const activeConvoIdRef = useRef<string | null>(null)
@@ -987,6 +988,9 @@ export default function MessagesPage() {
     try {
       const res = await api.post('/api/messages/conversations', { targetUserId: contact.id })
       handleStart(res.data.data.id, contact)
+    } catch (err: unknown) {
+      const status = (err as { response?: { status?: number } })?.response?.status
+      if (status === 403) setNotMutualUser(contact.username)
     } finally {
       setStartingFor(null)
     }
@@ -1152,6 +1156,25 @@ export default function MessagesPage() {
 
       {showNewModal && (
         <NewConversationModal onClose={() => setShowNewModal(false)} onStart={handleStart} />
+      )}
+
+      {notMutualUser && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 backdrop-blur-sm"
+          onClick={() => setNotMutualUser(null)}
+        >
+          <div className="w-full max-w-xs rounded-2xl border border-text/10 bg-surface p-6 shadow-xl flex flex-col items-center gap-3 text-center">
+            <div className="text-3xl">💬</div>
+            <p className="font-outfit text-base font-semibold text-text">Can&apos;t message @{notMutualUser}</p>
+            <p className="font-roboto text-sm text-text-muted">You can only message users who follow you back.</p>
+            <button
+              onClick={() => setNotMutualUser(null)}
+              className="mt-1 w-full rounded-lg bg-purple py-2 font-roboto text-sm font-semibold text-white hover:opacity-90 transition-opacity"
+            >
+              Got it
+            </button>
+          </div>
+        </div>
       )}
     </main>
   )

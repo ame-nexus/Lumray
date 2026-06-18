@@ -1,6 +1,7 @@
 import FavoritesRow from '@/components/profile/FavoritesRow'
 import RecentDiaryRow from '@/components/profile/RecentDiaryRow'
 import RecentReviewsList from '@/components/profile/RecentReviewsList'
+import FriendsRow from '@/components/profile/FriendsRow'
 import MovieRating from '@/components/movie/MovieRating'
 import RecentActivityCard from '@/components/profile/RecentActivityCard'
 import WatchStreakCard from '@/components/profile/WatchStreakCard'
@@ -23,12 +24,13 @@ export default async function ProfilePage({
 }) {
   const { username } = await params
 
-  const [diary, reviews, favourites, stats, activity] = await Promise.all([
+  const [diary, reviews, favourites, stats, activity, friends] = await Promise.all([
     fetchJson<RawDiaryEntry[]>(`${API}/api/users/${username}/diary?limit=4`),
     fetchJson<RawReview[]>(`${API}/api/users/${username}/reviews?limit=5`),
     fetchJson<{ id: string; tmdbId: number; title: string; posterPath: string | null }[]>(`${API}/api/users/${username}/favourites?limit=4`),
     fetchJson<StatsData>(`${API}/api/users/${username}/stats`),
     fetchJson<ActivityItem[]>(`${API}/api/users/${username}/activity`),
+    fetchJson<{ id: string; username: string; avatar: string | null }[]>(`${API}/api/users/${username}/friends`),
   ])
 
   const diaryForRow = (diary ?? []).map((e) => ({
@@ -63,6 +65,8 @@ export default async function ProfilePage({
     count,
   }))
 
+  const friendsList = friends ?? []
+
   return (
     <ProfileTwoColumn
       main={
@@ -79,6 +83,7 @@ export default async function ProfilePage({
             totalCount={ratingData.totalRatings}
             distribution={ratingDistribution}
           />
+          {friendsList.length > 0 && <FriendsRow friends={friendsList} />}
           <RecentActivityCard items={activityItems} />
           <WatchStreakCard {...streakProps} />
         </>

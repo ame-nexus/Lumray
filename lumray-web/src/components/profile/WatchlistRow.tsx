@@ -1,58 +1,49 @@
-'use client'
-
 import Image from 'next/image'
 import Link from 'next/link'
 import { tmdbPoster } from '@/lib/tmdbImage'
-import { useLanguageStore } from '@/store/language.store'
-import { useT } from '@/lib/i18n'
 
-export interface RecentDiaryRowProps {
-  username: string
-  entries: {
-    id: string
-    movie: { id: string; title: string; posterPath: string | null }
-    watchedAt: string
-    rating: number | null
-  }[]
+interface WatchlistMovie {
+  id: string
+  tmdbId: number
+  title: string
+  posterPath: string | null
 }
 
-export default function RecentDiaryRow({ username, entries }: RecentDiaryRowProps) {
-  const lang    = useLanguageStore(s => s.lang)
-  const t       = useT(lang)
-  const slots   = entries.slice(0, 4)
-  const placeholders = Math.max(0, 4 - slots.length)
+export default function WatchlistRow({ movies, username }: { movies: WatchlistMovie[]; username: string }) {
+  const slots = movies.slice(0, 8)
+  const placeholders = Math.max(0, 4 - Math.min(slots.length, 4))
 
   return (
     <section>
       <div className="mb-4 flex items-center justify-between gap-4">
-        <h2 className="font-outfit text-lg font-semibold text-text">{t.profile.recentDiary}</h2>
-        {entries.length > 0 && (
+        <h2 className="font-outfit text-lg font-semibold text-text">Watchlist</h2>
+        {movies.length > 4 && (
           <Link
-            href={`/profile/${username}/diary`}
+            href={`/profile/${username}/films?filter=watchlist`}
             className="font-roboto text-sm text-purple-light transition-colors hover:text-text"
           >
-            {t.profile.more}
+            more →
           </Link>
         )}
       </div>
 
       <div className="flex gap-3 overflow-x-auto pb-1 md:grid md:grid-cols-4 md:overflow-visible">
-        {slots.map((entry) => {
-          const src = entry.movie.posterPath ? tmdbPoster(entry.movie.posterPath, 'w300') : null
+        {slots.map((movie) => {
+          const src = movie.posterPath ? tmdbPoster(movie.posterPath, 'w300') : null
           return (
-            <Link key={entry.id} href={`/films/${entry.movie.id}`} className="group min-w-[28%] shrink-0 md:min-w-0">
+            <Link key={movie.id} href={`/films/${movie.tmdbId}`} className="group min-w-[28%] shrink-0 md:min-w-0">
               <div className="relative aspect-2/3 overflow-hidden rounded-lg bg-surface-2">
                 {src ? (
                   <Image
                     src={src}
-                    alt={entry.movie.title}
+                    alt={movie.title}
                     fill
                     sizes="(max-width: 768px) 28vw, 20vw"
                     className="object-cover transition-transform duration-300 group-hover:scale-105"
                   />
                 ) : (
                   <div className="flex h-full items-center justify-center p-2 text-center">
-                    <span className="font-roboto text-xs text-text-muted">{entry.movie.title}</span>
+                    <span className="font-roboto text-xs text-text-muted">{movie.title}</span>
                   </div>
                 )}
               </div>

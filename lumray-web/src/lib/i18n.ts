@@ -83,7 +83,7 @@ const t = {
       films: 'Films', thisYear: 'This year', followers: 'Followers',
       favorites: 'Favorites', recentDiary: 'Recent diary entries', recentReviews: 'Recent reviews',
       more: 'more →', likes: 'likes', comments: 'comments',
-      tabs: { profile: 'Profile', films: 'Films', diary: 'Diary', reviews: 'Reviews', lists: 'Lists', stats: 'Stats' },
+      tabs: { profile: 'Profile', films: 'Films', diary: 'Diary', reviews: 'Reviews', lists: 'Lists', stats: 'Stats', watchlist: 'Watchlist' },
       filmsCount: 'films', allGenres: 'All genres', filter: 'Filter',
       avgRating: 'Avg Rating', recentActivity: 'Recent activity', watchStreak: 'Watch streak',
       tasteBadges: 'Taste badges', daysInARow: 'days in a row', personalBest: 'Personal best:',
