@@ -87,7 +87,7 @@ interface TrackDetails {
 }
 
 export const spotifyService = {
-    async getSoundtrack(movieTitle: string): Promise<{ tracks: SpotifyTrack[]; albumName: string; albumUrl: string } | null> {
+    async getSoundtrack(movieTitle: string): Promise<{ tracks: SpotifyTrack[]; albumName: string; albumUrl: string; albumImage: string | null; totalTracks: number } | null> {
         try {
             // Search for the soundtrack album
             const queries = [
@@ -134,10 +134,12 @@ export const spotifyService = {
                 tracks: sorted.map(t => ({
                     id: t.id,
                     name: t.name,
-                    artist: t.artists.map(a => a.name).join(', '),
+                    artist: t.artists.map((a: { name: string }) => a.name).join(', '),
                     durationMs: t.duration_ms,
                     previewUrl: previewMap.get(t.id) ?? t.preview_url,
                     spotifyUrl: t.external_urls.spotify,
+                    albumName:  album.name,
+                    albumImage: album.images[0]?.url ?? null,
                 })),
             }
         } catch {

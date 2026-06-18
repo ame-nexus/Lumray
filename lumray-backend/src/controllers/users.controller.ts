@@ -1,4 +1,5 @@
 import { Request, Response } from 'express'
+import { Prisma } from '@prisma/client'
 import { prisma } from '../lib/prisma'
 import { AuthRequest } from '../middleware/auth.middleware'
 
@@ -127,22 +128,72 @@ export const getUserFilms = async (req: Request, res: Response) => {
         const { username } = req.params
         const page  = Math.max(1, parseInt(req.query.page as string) || 1)
         const limit = Math.min(60, parseInt(req.query.limit as string) || 24)
-        const genre = req.query.genre as string | undefined
+        const sort  = (req.query.sort as string) || 'newest'
+
+        // Filter params from FilterModal
+        const genresParam    = req.query.fg as string | undefined
+        const decadesParam   = req.query.fd as string | undefined
+        const languagesParam = req.query.fl as string | undefined
+        const runtimeParam   = req.query.fr as string | undefined
+
+        const genres    = genresParam    ? genresParam.split(',').map(s => s.trim()).filter(Boolean)    : []
+        const decades   = decadesParam   ? decadesParam.split(',').map(s => s.trim()).filter(Boolean)   : []
+        const languages = languagesParam ? languagesParam.split(',').map(s => s.trim()).filter(Boolean) : []
+        const runtimes  = runtimeParam   ? runtimeParam.split(',').map(s => s.trim()).filter(Boolean)   : []
 
         const user = await prisma.user.findUnique({ where: { username }, select: { id: true } })
         if (!user) return res.status(404).json({ data: null, error: 'Not found', message: 'User not found' })
 
+        // Build movie-level AND conditions
+        const movieAnd: Prisma.MovieWhereInput[] = []
+
+        if (genres.length) {
+            movieAnd.push({ genres: { some: { genre: { name: { in: genres } } } } })
+        }
+
+        // Decade → expand to individual years
+        const yearStarts: string[] = []
+        for (const d of decades) {
+            const start = parseInt(d) // "2010s" → 2010
+            if (!isNaN(start)) {
+                for (let y = start; y < start + 10; y++) yearStarts.push(String(y))
+            }
+        }
+        if (yearStarts.length) {
+            movieAnd.push({ OR: yearStarts.map(y => ({ releaseDate: { startsWith: y } })) } as Prisma.MovieWhereInput)
+        }
+
+        if (languages.length) {
+            movieAnd.push({ language: { in: languages } })
+        }
+
+        if (runtimes.length) {
+            const RUNTIME_RANGES: Record<string, Prisma.MovieWhereInput> = {
+                'under90':  { runtime: { lte: 90 } },
+                '90to120':  { runtime: { gte: 90,  lte: 120 } },
+                '120to180': { runtime: { gte: 120, lte: 180 } },
+                'over180':  { runtime: { gte: 180 } },
+            }
+            const rConds = runtimes.map(r => RUNTIME_RANGES[r]).filter(Boolean)
+            if (rConds.length) movieAnd.push({ OR: rConds } as Prisma.MovieWhereInput)
+        }
+
         const where = {
             userId: user.id,
-            ...(genre && genre !== 'All genres' ? {
-                movie: { genres: { some: { genre: { name: genre } } } }
-            } : {}),
+            ...(movieAnd.length ? { movie: { AND: movieAnd } } : {}),
         }
+
+        type OrderBy = { watchedAt?: 'asc' | 'desc' } | { movie: { title: 'asc' | 'desc' } }
+        const orderBy: OrderBy =
+            sort === 'oldest' ? { watchedAt: 'asc' } :
+            sort === 'a-z'    ? { movie: { title: 'asc' } } :
+            sort === 'z-a'    ? { movie: { title: 'desc' } } :
+                                { watchedAt: 'desc' }
 
         const [entries, total] = await Promise.all([
             prisma.diaryEntry.findMany({
                 where,
-                orderBy: { watchedAt: 'desc' },
+                orderBy,
                 skip: (page - 1) * limit,
                 take: limit,
                 distinct: ['movieId'],
@@ -152,7 +203,10 @@ export const getUserFilms = async (req: Request, res: Response) => {
                     movie: { select: { id: true, tmdbId: true, title: true, posterPath: true, releaseDate: true } },
                 },
             }),
-            prisma.diaryEntry.groupBy({ by: ['movieId'], where: { userId: user.id } }).then(r => r.length),
+            prisma.diaryEntry.groupBy({
+                by: ['movieId'],
+                where,
+            }).then(r => r.length),
         ])
 
         const films = entries.map(e => ({
@@ -228,7 +282,7 @@ export const getUserReviews = async (req: AuthRequest, res: Response) => {
                     rating: true,
                     createdAt: true,
                     userId: true,
-                    _count: { select: { likes: true, comments: true } },
+                    _count: { select: { reviewLikes: true, comments: true } },
                     movie: { select: { id: true, tmdbId: true, title: true, posterPath: true, releaseDate: true } },
                 },
             }),
@@ -246,6 +300,7 @@ export const getUserReviews = async (req: AuthRequest, res: Response) => {
 
         const mapped = reviews.map(r => ({
             ...r,
+            _count: { likes: r._count.reviewLikes, comments: r._count.comments },
             user: { id: profileUser.id, username: profileUser.username, avatar: profileUser.avatar },
             isLiked: likedSet.has(r.id),
         }))
@@ -454,6 +509,32 @@ export const getMyFollowing = async (req: AuthRequest, res: Response) => {
         const userId = req.user!.id
         const follows = await prisma.follow.findMany({
             where: { followerId: userId },
+            include: {
+                following: { select: { id: true, username: true, avatar: true } },
+            },
+            orderBy: { createdAt: 'desc' },
+        })
+        return res.json({
+            data: follows.map(f => f.following),
+            error: null,
+            message: 'ok',
+        })
+    } catch (error) {
+        return res.status(500).json({ data: null, error: 'Server error', message: String(error) })
+    }
+}
+
+export const getMutualFollows = async (req: AuthRequest, res: Response) => {
+    try {
+        const userId = req.user!.id
+        // People I follow who also follow me back
+        const follows = await prisma.follow.findMany({
+            where: {
+                followerId: userId,
+                following: {
+                    following: { some: { followingId: userId } },
+                },
+            },
             include: {
                 following: { select: { id: true, username: true, avatar: true } },
             },

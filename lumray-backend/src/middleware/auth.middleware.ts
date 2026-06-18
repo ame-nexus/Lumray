@@ -1,9 +1,16 @@
 import jwt from 'jsonwebtoken'
 import { Request, Response, NextFunction } from 'express'
 
-export interface AuthRequest extends Request {
-    user?: { id: string; username: string }
+declare global {
+    namespace Express {
+        interface User {
+            id: string
+            username: string
+        }
+    }
 }
+
+export type AuthRequest = Request
 
 export const optionalAuth = (req: AuthRequest, _res: Response, next: NextFunction) => {
     const token = req.headers.authorization?.split(' ')[1]

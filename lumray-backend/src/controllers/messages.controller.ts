@@ -65,6 +65,15 @@ export const startConversation = async (req: AuthRequest, res: Response) => {
         const target = await prisma.user.findUnique({ where: { id: targetUserId }, select: { id: true } })
         if (!target) return res.status(404).json({ data: null, error: 'Not found', message: 'User not found' })
 
+        // Mutual follow required
+        const [iFollow, theyFollow] = await Promise.all([
+            prisma.follow.findUnique({ where: { followerId_followingId: { followerId: userId,       followingId: targetUserId } } }),
+            prisma.follow.findUnique({ where: { followerId_followingId: { followerId: targetUserId, followingId: userId       } } }),
+        ])
+        if (!iFollow || !theyFollow) {
+            return res.status(403).json({ data: null, error: 'Forbidden', message: 'You can only message users who follow you back' })
+        }
+
         const existing = await prisma.conversation.findFirst({
             where: {
                 AND: [

@@ -30,7 +30,7 @@ async function syncGenres(): Promise<Map<number, string>> {
     )
 
     const saved = await prisma.genre.findMany({ select: { id: true, tmdbId: true } })
-    return new Map(saved.map(g => [g.tmdbId, g.id]))
+    return new Map(saved.map((g: { tmdbId: number; id: string }) => [g.tmdbId, g.id]))
 }
 
 async function syncMovies(movies: TmdbMovie[], genreMap: Map<number, string>) {
