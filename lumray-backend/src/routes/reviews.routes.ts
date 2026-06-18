@@ -2,7 +2,7 @@ import { Router } from 'express'
 import { authenticate, optionalAuth } from '../middleware/auth.middleware'
 import {
     getFeaturedReviews,
-    getReviews, createReview, updateReview,
+    getReview, getReviews, createReview, updateReview,
     deleteReview, likeReview, unlikeReview,
     getReviewComments, addReviewComment, deleteReviewComment,
 } from '../controllers/reviews.controller'
@@ -11,6 +11,7 @@ const router = Router()
 
 router.get('/featured',                      getFeaturedReviews)
 router.get('/',                              optionalAuth, getReviews)
+router.get('/:id',                           optionalAuth, getReview)
 router.post('/',                             authenticate, createReview)
 router.put('/:id',                           authenticate, updateReview)
 router.delete('/:id',                        authenticate, deleteReview)

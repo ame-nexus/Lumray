@@ -11,8 +11,8 @@ import api from '@/services/api'
 import LogModal from './LogModal'
 
 export interface MoviePosterProps {
-  id: number | string      // tmdbId — used for navigation
-  dbId?: string            // DB id — needed for diary/rating API calls
+  id: number | string
+  dbId?: string
   title: string
   year?: string | number
   posterPath: string | null
@@ -33,6 +33,27 @@ function formatCount(n: number): string {
   return String(n)
 }
 
+function UserStars({ score }: { score: number }) {
+  return (
+    <div className="flex items-center gap-0.5">
+      {[1, 2, 3, 4, 5].map(i => {
+        const filled = score >= i
+        const half   = !filled && score >= i - 0.5
+        return (
+          <span key={i} className="relative inline-block" style={{ width: 12, height: 12 }}>
+            <Star size={12} className="absolute inset-0 text-white/30" />
+            {(filled || half) && (
+              <span className="absolute inset-0 overflow-hidden" style={{ width: half ? '50%' : '100%' }}>
+                <Star size={12} className="fill-purple-light text-purple-light" />
+              </span>
+            )}
+          </span>
+        )
+      })}
+    </div>
+  )
+}
+
 export default function MoviePoster({
   id, dbId, title, year, posterPath, rating, ratingCount, sizes, priority,
 }: MoviePosterProps) {
@@ -40,24 +61,21 @@ export default function MoviePoster({
   const router = useRouter()
   const user   = useAuthStore(s => s.user)
 
-  // Read watchlist state from global store (pre-loaded by the film detail page)
-  // Falls back to false when not yet fetched — no per-card API call
-  const storeStatus     = useFilmStatusStore(s => dbId ? s.statuses[dbId] : undefined)
-  const setStoreStatus  = useFilmStatusStore(s => s.set)
+  const storeStatus    = useFilmStatusStore(s => dbId ? s.statuses[dbId] : undefined)
+  const setStoreStatus = useFilmStatusStore(s => s.set)
 
   const [imgError,  setImgError]  = useState(false)
   const [modalOpen, setModalOpen] = useState(false)
 
-  const tmdbId     = typeof id === 'string' ? parseInt(id) : id
+  const tmdbId      = typeof id === 'string' ? parseInt(id) : id
   const watchlisted = storeStatus?.watchlisted ?? false
   const watched     = storeStatus?.watched     ?? false
+  const userRating  = storeStatus?.rating      ?? 0
 
   async function handleWatchlist(e: React.MouseEvent) {
-    e.preventDefault()
-    e.stopPropagation()
+    e.preventDefault(); e.stopPropagation()
     if (!user) { router.push('/login'); return }
     if (!dbId) return
-
     const next = !watchlisted
     setStoreStatus(dbId, { watchlisted: next })
     api.post(`/api/film-status/${dbId}/watchlist`)
@@ -66,11 +84,9 @@ export default function MoviePoster({
   }
 
   async function handleWatched(e: React.MouseEvent) {
-    e.preventDefault()
-    e.stopPropagation()
+    e.preventDefault(); e.stopPropagation()
     if (!user) { router.push('/login'); return }
     if (!dbId) return
-
     const next = !watched
     setStoreStatus(dbId, { watched: next })
     api.post(`/api/film-status/${dbId}/watched`)
@@ -79,11 +95,12 @@ export default function MoviePoster({
   }
 
   function openLog(e: React.MouseEvent) {
-    e.preventDefault()
-    e.stopPropagation()
+    e.preventDefault(); e.stopPropagation()
     if (!user) { router.push('/login'); return }
     setModalOpen(true)
   }
+
+  const showUserRating = user && userRating > 0
 
   return (
     <>
@@ -109,6 +126,13 @@ export default function MoviePoster({
           </div>
         )}
 
+        {/* Always-visible user rating — fades out when hover overlay appears */}
+        {showUserRating && (
+          <div className="absolute bottom-0 inset-x-0 flex items-end justify-center pb-2 pt-8 bg-linear-to-t from-black/80 via-black/40 to-transparent transition-opacity duration-200 group-hover:opacity-0">
+            <UserStars score={userRating} />
+          </div>
+        )}
+
         {/* Hover overlay */}
         <div className="absolute inset-0 flex flex-col justify-between bg-linear-to-t from-black/90 via-black/55 to-black/70 p-2.5 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
 
@@ -124,12 +148,8 @@ export default function MoviePoster({
 
           {/* Middle: Watchlist + Watched + Log */}
           <div className="flex items-center justify-center gap-3">
-            <button
-              type="button"
-              onClick={handleWatchlist}
-              aria-label="Add to watchlist"
-              className="flex flex-col items-center gap-1 transition-colors hover:text-white"
-            >
+            <button type="button" onClick={handleWatchlist} aria-label="Add to watchlist"
+              className="flex flex-col items-center gap-1">
               <div className={`flex h-8 w-8 items-center justify-center rounded-full backdrop-blur-sm transition-colors ${
                 watchlisted ? 'bg-purple text-white' : 'bg-white/15 text-white/80 hover:bg-white/25'
               }`}>
@@ -138,12 +158,9 @@ export default function MoviePoster({
               <span className="font-roboto text-[9px] leading-none text-white/80">Watchlist</span>
             </button>
 
-            <button
-              type="button"
-              onClick={handleWatched}
+            <button type="button" onClick={handleWatched}
               aria-label={watched ? 'Mark as not watched' : 'Mark as watched'}
-              className="flex flex-col items-center gap-1 transition-colors hover:text-white"
-            >
+              className="flex flex-col items-center gap-1">
               <div className={`flex h-8 w-8 items-center justify-center rounded-full backdrop-blur-sm transition-colors ${
                 watched ? 'bg-purple text-white' : 'bg-white/15 text-white/80 hover:bg-white/25'
               }`}>
@@ -152,12 +169,8 @@ export default function MoviePoster({
               <span className="font-roboto text-[9px] leading-none text-white/80">Watched</span>
             </button>
 
-            <button
-              type="button"
-              onClick={openLog}
-              aria-label="Log film"
-              className="flex flex-col items-center gap-1 transition-colors hover:text-white"
-            >
+            <button type="button" onClick={openLog} aria-label="Log film"
+              className="flex flex-col items-center gap-1">
               <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/15 text-white/80 backdrop-blur-sm transition-colors hover:bg-white/25">
                 <Plus size={16} />
               </div>
@@ -165,7 +178,7 @@ export default function MoviePoster({
             </button>
           </div>
 
-          {/* Bottom: star rating left, count right */}
+          {/* Bottom: TMDb rating + count */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1">
               <Star size={10} className="shrink-0 fill-purple-light text-purple-light" />

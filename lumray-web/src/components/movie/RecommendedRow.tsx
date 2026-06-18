@@ -1,6 +1,5 @@
 'use client'
 
-import Link from 'next/link'
 import MoviePoster from '@/components/films/MoviePoster'
 import { useLanguageStore } from '@/store/language.store'
 import { useT } from '@/lib/i18n'
@@ -16,28 +15,18 @@ export interface RecommendedMovie {
 
 export interface RecommendedRowProps {
   movies: RecommendedMovie[]
-  moreHref?: string
 }
 
-export default function RecommendedRow({
-  movies,
-  moreHref = '#',
-}: RecommendedRowProps) {
+export default function RecommendedRow({ movies }: RecommendedRowProps) {
   const lang = useLanguageStore(s => s.lang)
   const t    = useT(lang)
 
   return (
     <section>
-      <div className="mb-4 flex items-center justify-between gap-4">
+      <div className="mb-4">
         <h2 className="font-outfit text-xl font-bold text-text">
           {t.movie.similar}
         </h2>
-        <Link
-          href={moreHref}
-          className="font-roboto text-sm text-purple-light underline"
-        >
-          {t.movie.more}
-        </Link>
       </div>
 
       <div

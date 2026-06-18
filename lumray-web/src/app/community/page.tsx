@@ -10,6 +10,7 @@ import {
 import api from '@/services/api'
 import { useAuthStore } from '@/store/auth.store'
 import FollowButton from '@/components/ui/FollowButton'
+import ConfirmModal from '@/components/ui/ConfirmModal'
 
 // ── Types ────────────────────────────────────────────────────────────────
 
@@ -366,14 +367,16 @@ function PostCard({ post, currentUserId, onDelete }: {
   currentUserId: string | null
   onDelete: (id: string) => void
 }) {
-  const [liked,        setLiked]        = useState(post.isLiked)
-  const [likeCount,    setLikeCount]    = useState(post._count.likes)
-  const [showComments, setShowComments] = useState(false)
-  const [comments,     setComments]     = useState<Comment[]>([])
-  const [commentCount, setCommentCount] = useState(post._count.comments)
-  const [newComment,   setNewComment]   = useState('')
-  const [sending,      setSending]      = useState(false)
-  const [loadingCmts,  setLoadingCmts]  = useState(false)
+  const [liked,             setLiked]             = useState(post.isLiked)
+  const [likeCount,         setLikeCount]         = useState(post._count.likes)
+  const [showComments,      setShowComments]      = useState(false)
+  const [comments,          setComments]          = useState<Comment[]>([])
+  const [commentCount,      setCommentCount]      = useState(post._count.comments)
+  const [newComment,        setNewComment]        = useState('')
+  const [sending,           setSending]           = useState(false)
+  const [loadingCmts,       setLoadingCmts]       = useState(false)
+  const [confirmPost,       setConfirmPost]       = useState(false)
+  const [confirmCommentId,  setConfirmCommentId]  = useState<string | null>(null)
 
   const year = post.movie?.releaseDate?.slice(0, 4)
 
@@ -429,14 +432,22 @@ function PostCard({ post, currentUserId, onDelete }: {
   }
 
   const deleteComment = (id: string) => {
+    setConfirmCommentId(id)
+  }
+
+  const doDeleteComment = (id: string) => {
     const removed = comments.filter(c => c.id === id || c.parentId === id).length
     setComments(cs => cs.filter(c => c.id !== id && c.parentId !== id))
     setCommentCount(c => Math.max(0, c - removed))
     api.delete(`/api/posts/comments/${id}`).catch(() => {})
+    setConfirmCommentId(null)
   }
 
-  const handleDelete = async () => {
+  const handleDelete = () => setConfirmPost(true)
+
+  const doDeletePost = async () => {
     await api.delete(`/api/posts/${post.id}`)
+    setConfirmPost(false)
     onDelete(post.id)
   }
 
@@ -444,6 +455,7 @@ function PostCard({ post, currentUserId, onDelete }: {
   const repliesOf = (id: string) => comments.filter(c => c.parentId === id)
 
   return (
+    <>
     <article className="rounded-xl border border-text/10 bg-surface p-4 flex flex-col gap-3">
 
       {/* Header */}
@@ -580,6 +592,24 @@ function PostCard({ post, currentUserId, onDelete }: {
         </div>
       )}
     </article>
+
+    {confirmPost && (
+      <ConfirmModal
+        title="Delete post"
+        message="Delete this post? This can't be undone."
+        onConfirm={doDeletePost}
+        onCancel={() => setConfirmPost(false)}
+      />
+    )}
+    {confirmCommentId && (
+      <ConfirmModal
+        title="Delete comment"
+        message="Delete this comment? This can't be undone."
+        onConfirm={() => doDeleteComment(confirmCommentId)}
+        onCancel={() => setConfirmCommentId(null)}
+      />
+    )}
+  </>
   )
 }
 

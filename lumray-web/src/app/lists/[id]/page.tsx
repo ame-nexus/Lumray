@@ -9,6 +9,7 @@ import { useAuthStore } from '@/store/auth.store'
 import { useLanguageStore } from '@/store/language.store'
 import { useT } from '@/lib/i18n'
 import api from '@/services/api'
+import ConfirmModal from '@/components/ui/ConfirmModal'
 
 interface ListMovie {
   id: string
@@ -52,7 +53,8 @@ export default function ListDetailPage() {
   const [editName,   setEditName]   = useState('')
   const [editDesc,   setEditDesc]   = useState('')
   const [saving,     setSaving]     = useState(false)
-  const [deleting,   setDeleting]   = useState(false)
+  const [deleting,         setDeleting]         = useState(false)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
 
   useEffect(() => {
     api.get(`/api/lists/${id}`)
@@ -86,15 +88,15 @@ export default function ListDetailPage() {
     }
   }
 
-  async function handleDelete() {
+  async function doDelete() {
     if (!list) return
-    if (!window.confirm(t.list.confirmDelete)) return
     setDeleting(true)
     try {
       await api.delete(`/api/lists/${list.id}`)
       router.push('/lists')
     } finally {
       setDeleting(false)
+      setShowDeleteConfirm(false)
     }
   }
 
@@ -128,6 +130,7 @@ export default function ListDetailPage() {
   }
 
   return (
+    <>
     <main className="px-6 md:px-12 xl:px-60 py-10">
 
       {/* Back */}
@@ -205,9 +208,8 @@ export default function ListDetailPage() {
                   Edit
                 </button>
                 <button
-                  onClick={handleDelete}
-                  disabled={deleting}
-                  className="flex items-center gap-1.5 rounded-full border border-red-500/30 px-3 py-1.5 font-roboto text-xs text-red-400 transition-colors hover:border-red-500/60 disabled:opacity-40"
+                  onClick={() => setShowDeleteConfirm(true)}
+                  className="flex items-center gap-1.5 rounded-full border border-red-500/30 px-3 py-1.5 font-roboto text-xs text-red-400 transition-colors hover:border-red-500/60"
                 >
                   <Trash2 size={13} />
                   {t.list.deleteList}
@@ -270,5 +272,16 @@ export default function ListDetailPage() {
         </div>
       )}
     </main>
+
+    {showDeleteConfirm && (
+      <ConfirmModal
+        title="Delete list"
+        message={`Delete "${list?.name}"? This can't be undone.`}
+        loading={deleting}
+        onConfirm={doDelete}
+        onCancel={() => setShowDeleteConfirm(false)}
+      />
+    )}
+  </>
   )
 }

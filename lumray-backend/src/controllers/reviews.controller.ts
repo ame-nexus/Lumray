@@ -5,12 +5,12 @@ import { AuthRequest } from '../middleware/auth.middleware'
 export const getFeaturedReviews = async (_req: Request, res: Response) => {
     try {
         const reviews = await prisma.review.findMany({
-            orderBy: { likes: { _count: 'desc' } },
+            orderBy: { reviewLikes: { _count: 'desc' } },
             take: 6,
             include: {
                 user: { select: { id: true, username: true, avatar: true } },
                 movie: { select: { tmdbId: true, title: true, posterPath: true } },
-                _count: { select: { likes: true } },
+                _count: { select: { reviewLikes: true } },
             },
         })
 
@@ -22,8 +22,43 @@ export const getFeaturedReviews = async (_req: Request, res: Response) => {
                 createdAt: r.createdAt,
                 user:      r.user,
                 movie:     r.movie,
-                likeCount: r._count.likes,
+                likeCount: r._count.reviewLikes,
             })),
+            error: null,
+            message: 'ok',
+        })
+    } catch (error) {
+        return res.status(500).json({ data: null, error: 'Server error', message: String(error) })
+    }
+}
+
+export const getReview = async (req: AuthRequest, res: Response) => {
+    try {
+        const { id } = req.params
+        const review = await prisma.review.findUnique({
+            where: { id },
+            include: {
+                user:  { select: { id: true, username: true, avatar: true } },
+                movie: { select: { id: true, tmdbId: true, title: true, posterPath: true, releaseDate: true } },
+                _count: { select: { reviewLikes: true, comments: true } },
+            },
+        })
+        if (!review) return res.status(404).json({ data: null, error: 'Not found', message: 'Review not found' })
+
+        let isLiked = false
+        if (req.user?.id) {
+            const like = await prisma.reviewLike.findUnique({
+                where: { userId_reviewId: { userId: req.user.id, reviewId: id } },
+            })
+            isLiked = !!like
+        }
+
+        return res.json({
+            data: {
+                ...review,
+                isLiked,
+                _count: { likes: review._count.reviewLikes, comments: review._count.comments },
+            },
             error: null,
             message: 'ok',
         })
@@ -42,7 +77,7 @@ export const getReviews = async (req: AuthRequest, res: Response) => {
             orderBy: { createdAt: 'desc' },
             include: {
                 user: { select: { id: true, username: true, avatar: true } },
-                _count: { select: { likes: true, comments: true } },
+                _count: { select: { reviewLikes: true, comments: true } },
             },
         })
 
@@ -56,7 +91,11 @@ export const getReviews = async (req: AuthRequest, res: Response) => {
         }
 
         return res.json({
-            data: reviews.map(r => ({ ...r, isLiked: likedSet.has(r.id) })),
+            data: reviews.map(r => ({
+                ...r,
+                _count: { likes: r._count.reviewLikes, comments: r._count.comments },
+                isLiked: likedSet.has(r.id),
+            })),
             error: null,
             message: 'ok',
         })

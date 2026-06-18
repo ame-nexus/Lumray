@@ -25,11 +25,12 @@ type ApiMovie = {
 }
 
 type ApiReview = {
+  id: string
   content: string
   rating: number | null
-  user: { id: string; username: string; avatar: string | null }
-  movie: { title: string; posterPath: string | null }
   likeCount: number
+  user: { id: string; username: string; avatar: string | null }
+  movie: { tmdbId: number; title: string; posterPath: string | null }
 }
 
 type ApiGenre = {
@@ -43,6 +44,7 @@ type ApiPost = {
   content: string
   tags: string[]
   createdAt: string
+  isLiked: boolean
   user: { username: string; avatar: string | null }
   movie: { tmdbId: number; title: string; posterPath: string | null; releaseDate: string | null } | null
   _count: { likes: number; comments: number }
@@ -99,6 +101,8 @@ function toRowMovie(m: ApiMovie): MovieRowMovie {
 function toReviewItem(r: ApiReview): CommunityReviewItem | null {
   if (!r.movie.posterPath) return null
   return {
+    id: r.id,
+    isLiked: false,
     content: r.content,
     rating: Math.round(r.rating ?? 0),
     user: {
@@ -106,7 +110,7 @@ function toReviewItem(r: ApiReview): CommunityReviewItem | null {
       username: r.user.username,
       avatar: r.user.avatar ?? `https://i.pravatar.cc/150?u=${encodeURIComponent(r.user.username)}`,
     },
-    movie: { title: r.movie.title, posterPath: r.movie.posterPath },
+    movie: { tmdbId: r.movie.tmdbId, title: r.movie.title, posterPath: r.movie.posterPath },
     likeCount: r.likeCount,
   }
 }
@@ -123,6 +127,8 @@ function timeAgo(dateStr: string): string {
 function toPostCard(p: ApiPost): PostCardData {
   const year = p.movie?.releaseDate ? parseInt(p.movie.releaseDate.slice(0, 4)) : undefined
   return {
+    id: p.id,
+    isLiked: p.isLiked,
     user: { username: p.user.username, avatar: p.user.avatar ?? undefined },
     content: p.content,
     tag: p.tags[0] ?? 'General',

@@ -5,7 +5,7 @@ import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import {
   Bookmark, Eye, Heart, Star,
-  PenLine, ListPlus, ImagePlus, Share2,
+  PenLine, ListPlus, ImagePlus, Share2, Info, ChevronDown,
 } from 'lucide-react'
 import { useAuthStore } from '@/store/auth.store'
 import { useFilmStatusStore } from '@/store/filmStatus.store'
@@ -14,6 +14,7 @@ import ReviewModal from './ReviewModal'
 import AddToListsModal from './AddToListsModal'
 import { useLanguageStore } from '@/store/language.store'
 import { useT } from '@/lib/i18n'
+import { formatRuntime } from './MovieInfo'
 
 export interface MovieActionsProps {
   movieId: string
@@ -22,6 +23,13 @@ export interface MovieActionsProps {
   releaseDate?: string | null
   director?: string | null
   mobileInline?: boolean
+  // Film info (mobile inline only)
+  writers?: string[]
+  cinematography?: string
+  music?: string
+  runtime?: number | null
+  language?: string
+  released?: string
 }
 
 function nextRating(current: number, star: number): number {
@@ -96,6 +104,7 @@ export default function MovieActions({
   movieId, movieTitle = '',
   posterPath, releaseDate, director,
   mobileInline = false,
+  writers, cinematography, music, runtime, language, released,
 }: MovieActionsProps) {
   const router = useRouter()
   const user   = useAuthStore(s => s.user)
@@ -114,6 +123,7 @@ export default function MovieActions({
 
   const [reviewOpen, setReviewOpen] = useState(false)
   const [listsOpen,  setListsOpen]  = useState(false)
+  const [showInfo,   setShowInfo]   = useState(false)
 
   // Load status from API on mount (no-op if already cached in store)
   useEffect(() => {
@@ -217,6 +227,16 @@ export default function MovieActions({
 
   // ── Inline card (mobile/tablet, placed after description) ──────────────
   if (mobileInline) {
+    const infoRows: { label: string; value: string; link?: boolean }[] = []
+    if (director)           infoRows.push({ label: t.movie.director, value: director, link: true })
+    if (writers?.length)    infoRows.push({ label: writers.length === 1 ? t.movie.writer : t.movie.writers, value: writers.join(', '), link: true })
+    if (cinematography)     infoRows.push({ label: t.movie.cinematography, value: cinematography })
+    if (music)              infoRows.push({ label: t.movie.music, value: music })
+    if (runtime != null)    infoRows.push({ label: t.movie.runtime, value: formatRuntime(runtime) })
+    if (language)           infoRows.push({ label: t.movie.language, value: language })
+    if (released)           infoRows.push({ label: t.movie.released, value: released })
+    const hasInfo = infoRows.length > 0
+
     return (
       <>
         <div className="rounded-xl bg-surface p-5 space-y-5">
@@ -226,8 +246,23 @@ export default function MovieActions({
                 <Image src={posterSrc} alt={movieTitle} fill className="object-cover" sizes="96px" />
               )}
             </div>
-            <div className="flex flex-col justify-center gap-0.5">
-              <p className="font-outfit text-base font-bold leading-tight text-white">{movieTitle}</p>
+            <div className="flex min-w-0 flex-1 flex-col justify-center gap-0.5">
+              <div className="flex items-start justify-between gap-2">
+                <p className="font-outfit text-base font-bold leading-tight text-white">{movieTitle}</p>
+                {hasInfo && (
+                  <button
+                    type="button"
+                    onClick={() => setShowInfo(v => !v)}
+                    title="Film info"
+                    className={`shrink-0 flex items-center gap-0.5 rounded-full px-2 py-1 font-roboto text-[11px] transition-colors ${
+                      showInfo ? 'bg-purple/20 text-purple-light' : 'text-text-muted hover:text-text'
+                    }`}
+                  >
+                    <Info size={13} />
+                    <ChevronDown size={11} className={`transition-transform duration-200 ${showInfo ? 'rotate-180' : ''}`} />
+                  </button>
+                )}
+              </div>
               {releaseDate && (
                 <p className="font-roboto text-sm text-text-muted">{releaseDate.slice(0, 4)}</p>
               )}
@@ -238,6 +273,23 @@ export default function MovieActions({
               )}
             </div>
           </div>
+
+          {/* Collapsible film info */}
+          {showInfo && hasInfo && (
+            <div className="border-t border-text/10 pt-4">
+              <p className="mb-2 font-outfit text-xs font-semibold text-text">{t.movie.info}</p>
+              <div>
+                {infoRows.map(row => (
+                  <div key={row.label} className="flex items-start justify-between gap-4 border-b border-text/5 py-1.5 last:border-0">
+                    <span className="shrink-0 font-roboto text-xs text-text-muted">{row.label}</span>
+                    <span className={`text-right font-roboto text-xs ${row.link ? 'text-purple-light' : 'text-text'}`}>
+                      {row.value}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           <ToggleRow {...toggleProps} />
 

@@ -11,6 +11,7 @@ import { useT } from '@/lib/i18n'
 
 export interface MovieCommunityProps {
   movieId: string
+  tmdbId:  number
   reviews: ReviewCardProps[]
 }
 
@@ -60,7 +61,7 @@ function Avatar({ username, avatar }: { username: string; avatar: string | null 
   )
 }
 
-export default function MovieCommunity({ movieId }: MovieCommunityProps) {
+export default function MovieCommunity({ movieId, tmdbId }: MovieCommunityProps) {
   const lang = useLanguageStore(s => s.lang)
   const t    = useT(lang)
   const [tab,          setTab]          = useState<Tab>('reviews')
@@ -139,9 +140,11 @@ export default function MovieCommunity({ movieId }: MovieCommunityProps) {
     <section>
       <div className="mb-4 flex items-center justify-between gap-4">
         <h2 className="font-outfit text-xl font-bold text-text">{t.movie.community}</h2>
-        <Link href={`/films/${movieId}/reviews`} className="font-roboto text-sm text-purple-light underline">
-          {t.movie.allReviews}
-        </Link>
+        {tab === 'reviews' && (
+          <Link href={`/films/${tmdbId}/reviews`} className="font-roboto text-sm text-purple-light underline">
+            {t.movie.allReviews}
+          </Link>
+        )}
       </div>
 
       <div className="mb-4 flex gap-6 border-b border-text/10">
@@ -195,7 +198,7 @@ export default function MovieCommunity({ movieId }: MovieCommunityProps) {
         ) : (
           <div className="space-y-4">
             {posts.map(post => (
-              <article key={post.id} className="rounded-xl border border-text/10 bg-surface p-4">
+              <Link key={post.id} href={`/community/${post.id}`} className="block rounded-xl border border-text/10 bg-surface p-4 transition-colors hover:border-text/20 hover:bg-surface-2">
                 <div className="flex items-center gap-2.5">
                   <Avatar username={post.user.username} avatar={post.user.avatar} />
                   <div>
@@ -211,7 +214,7 @@ export default function MovieCommunity({ movieId }: MovieCommunityProps) {
                   <span aria-hidden>·</span>
                   <span className="inline-flex items-center gap-1"><MessageCircle size={12} />{post._count.comments} {t.movie.comments}</span>
                 </div>
-              </article>
+              </Link>
             ))}
           </div>
         )

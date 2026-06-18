@@ -7,6 +7,7 @@ import { Pencil, Star, Trash2, X, Loader2 } from 'lucide-react'
 import StarRating from '@/components/ui/StarRating'
 import { tmdbPoster } from '@/lib/tmdbImage'
 import api from '@/services/api'
+import ConfirmModal from '@/components/ui/ConfirmModal'
 
 export interface DiaryEntryData {
   id: string
@@ -172,43 +173,6 @@ function EditModal({ entry, onClose, onSaved }: EditModalProps) {
 }
 
 // ── Confirm Modal ──────────────────────────────────────────────────────────
-
-function ConfirmModal({ title, message, onConfirm, onCancel, loading }: {
-  title: string
-  message: string
-  loading: boolean
-  onConfirm: () => void
-  onCancel: () => void
-}) {
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4"
-      onClick={e => e.target === e.currentTarget && onCancel()}
-    >
-      <div className="w-full max-w-xs rounded-2xl bg-surface border border-text/10 p-5 flex flex-col gap-4 shadow-xl">
-        <div>
-          <h3 className="font-outfit text-base font-semibold text-text">{title}</h3>
-          <p className="mt-1 font-roboto text-sm text-text-muted">{message}</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={onCancel}
-            className="flex-1 rounded-lg border border-text/15 py-2 font-roboto text-sm text-text-muted hover:border-text/30 hover:text-text transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={onConfirm}
-            disabled={loading}
-            className="flex-1 flex items-center justify-center gap-1.5 rounded-lg bg-red-500/80 py-2 font-roboto text-sm font-semibold text-white hover:bg-red-500 disabled:opacity-50 transition-colors"
-          >
-            {loading ? <Loader2 size={14} className="animate-spin" /> : 'Remove'}
-          </button>
-        </div>
-      </div>
-    </div>
-  )
-}
 
 // ── Row ────────────────────────────────────────────────────────────────────
 

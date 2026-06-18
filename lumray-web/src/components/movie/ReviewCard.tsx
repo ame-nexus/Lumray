@@ -7,6 +7,7 @@ import { useAuthStore } from '@/store/auth.store'
 import { useRouter } from 'next/navigation'
 import api from '@/services/api'
 import FollowButton from '@/components/ui/FollowButton'
+import ConfirmModal from '@/components/ui/ConfirmModal'
 
 export interface ReviewCardProps {
   id: string
@@ -85,8 +86,10 @@ export default function ReviewCard({
   const [loadingCmts,   setLoadingCmts]   = useState(false)
   const [newComment,    setNewComment]    = useState('')
   const [submitting,    setSubmitting]    = useState(false)
-  const [deleting,      setDeleting]      = useState(false)
-  const [totalComments, setTotalComments] = useState(commentCount)
+  const [deleting,          setDeleting]          = useState(false)
+  const [totalComments,     setTotalComments]     = useState(commentCount)
+  const [confirmDelete,     setConfirmDelete]     = useState(false)
+  const [confirmCommentId,  setConfirmCommentId]  = useState<string | null>(null)
 
   function requireAuth(): boolean {
     if (currentUser) return false
@@ -143,18 +146,28 @@ export default function ReviewCard({
     }
   }
 
-  async function deleteComment(commentId: string) {
+  function deleteComment(commentId: string) {
+    setConfirmCommentId(commentId)
+  }
+
+  async function doDeleteComment(commentId: string) {
     try {
       await api.delete(`/api/reviews/${id}/comments/${commentId}`)
       setComments(c => c.filter(cm => cm.id !== commentId))
       setTotalComments(n => n - 1)
     } catch {
       // silent
+    } finally {
+      setConfirmCommentId(null)
     }
   }
 
-  async function handleDelete() {
-    if (deleting) return
+  function handleDelete() {
+    setConfirmDelete(true)
+  }
+
+  async function doDelete() {
+    setConfirmDelete(false)
     setDeleting(true)
     try {
       await api.delete(`/api/reviews/${id}`)
@@ -165,6 +178,7 @@ export default function ReviewCard({
   }
 
   return (
+    <>
     <article className="rounded-xl border border-text/10 bg-surface">
       <div className="p-4">
         {/* Header */}
@@ -296,6 +310,25 @@ export default function ReviewCard({
         </div>
       )}
     </article>
+
+    {confirmDelete && (
+      <ConfirmModal
+        title="Delete review"
+        message="Delete your review? This can't be undone."
+        loading={deleting}
+        onConfirm={doDelete}
+        onCancel={() => setConfirmDelete(false)}
+      />
+    )}
+    {confirmCommentId && (
+      <ConfirmModal
+        title="Delete comment"
+        message="Delete this comment? This can't be undone."
+        onConfirm={() => doDeleteComment(confirmCommentId)}
+        onCancel={() => setConfirmCommentId(null)}
+      />
+    )}
+  </>
   )
 }
 

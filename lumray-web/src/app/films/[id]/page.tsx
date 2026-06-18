@@ -158,7 +158,7 @@ export default async function MovieDetailPage({ params }: { params: Promise<{ id
             )}
 
             {/* Inline actions card — mobile/tablet only */}
-            <div className="lg:hidden">
+            <div className="lg:hidden space-y-4">
               <MovieActions
                 movieId={movie.id}
                 movieTitle={movie.title}
@@ -166,7 +166,27 @@ export default async function MovieDetailPage({ params }: { params: Promise<{ id
                 releaseDate={movie.releaseDate}
                 director={director}
                 mobileInline
+                writers={writers.length ? writers : undefined}
+                cinematography={cinematography}
+                music={music}
+                runtime={movie.runtime}
+                language={language}
+                released={movie.releaseDate ?? undefined}
               />
+              <MovieRating
+                average={ratingAverage}
+                totalCount={movie.voteCount}
+                distribution={[]}
+              />
+              {soundtrack && (
+                <SoundtrackSection
+                  tracks={soundtrack.tracks}
+                  albumName={soundtrack.albumName}
+                  albumUrl={soundtrack.albumUrl}
+                  albumImage={soundtrack.albumImage}
+                  totalTracks={soundtrack.totalTracks}
+                />
+              )}
             </div>
 
             {(castForSection.length > 0 || crewForSection.length > 0) && (
@@ -177,7 +197,7 @@ export default async function MovieDetailPage({ params }: { params: Promise<{ id
               <GenreThemesSection genres={genreNames} themes={movie.keywords} />
             )}
 
-            <MovieCommunity movieId={movie.id} reviews={[]} />
+            <MovieCommunity movieId={movie.id} tmdbId={movie.tmdbId} reviews={[]} />
 
             <RecommendedRow movies={similar} />
           </div>

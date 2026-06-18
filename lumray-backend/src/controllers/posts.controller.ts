@@ -47,6 +47,33 @@ export const getPosts = async (req: AuthRequest, res: Response) => {
     }
 }
 
+export const getPost = async (req: AuthRequest, res: Response) => {
+    try {
+        const { id } = req.params
+        const post = await prisma.post.findUnique({
+            where: { id },
+            include: {
+                user:  { select: { id: true, username: true, avatar: true } },
+                movie: { select: { id: true, tmdbId: true, title: true, posterPath: true, releaseDate: true } },
+                _count: { select: { likes: true, comments: true } },
+            },
+        })
+        if (!post) return res.status(404).json({ data: null, error: 'Not found', message: 'Post not found' })
+
+        let isLiked = false
+        if (req.user?.id) {
+            const like = await prisma.postLike.findUnique({
+                where: { userId_postId: { userId: req.user.id, postId: id } },
+            })
+            isLiked = !!like
+        }
+
+        return res.json({ data: { ...post, isLiked }, error: null, message: 'ok' })
+    } catch (error) {
+        return res.status(500).json({ data: null, error: 'Server error', message: String(error) })
+    }
+}
+
 export const getPostComments = async (req: Request, res: Response) => {
     try {
         const { id: postId } = req.params
