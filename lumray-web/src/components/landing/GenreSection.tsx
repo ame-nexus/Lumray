@@ -80,17 +80,17 @@ export default function GenreSection() {
                 {loading
                     ? Array.from({ length: 8 }).map((_, i) => (
                         <SwiperSlide key={i}>
-                            <div className="relative aspect-2/3 rounded-xl bg-surface overflow-hidden">
+                            <div className="relative aspect-[2/3] rounded-xl bg-surface overflow-hidden">
                                 <div className="absolute inset-0 -translate-x-full animate-[shimmer_1.5s_infinite] bg-linear-to-r from-transparent via-white/5 to-transparent" />
                             </div>
                         </SwiperSlide>
                     ))
                     : (moviesByGenre[selectedGenre.id] ?? []).map((movie) => (
-                        <SwiperSlide key={movie.id}>
-                            <div className="relative aspect-2/3 rounded-xl overflow-hidden">
-                                {movie.poster_path && (
+                        <SwiperSlide key={movie.id || Math.random()}>
+                            <div className="relative aspect-[2/3] rounded-xl overflow-hidden">
+                                {movie.posterPath && (
                                     <Image
-                                        src={`https://image.tmdb.org/t/p/w300${movie.poster_path}`}
+                                        src={`https://image.tmdb.org/t/p/w300${movie.posterPath}`}
                                         alt={movie.title}
                                         fill
                                         className="object-cover"
