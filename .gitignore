@@ -16,3 +16,15 @@ out/
 .npm
 .eslintcache
 .kombai/
+
+# Local IDE and AI tool settings
+.idea/
+.claude/
+.sixth/
+.vscode/settings.json
+
+# AI-only instruction files
+CLAUDE.md
+**/CLAUDE.md
+AGENTS.md
+**/AGENTS.md
